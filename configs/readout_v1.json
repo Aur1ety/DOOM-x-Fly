@@ -1,0 +1,225 @@
+{
+ "version": 1,
+ "cells": [
+  {
+   "type": "DNa02",
+   "side": "L",
+   "bodyId": 523769,
+   "role": "turn"
+  },
+  {
+   "type": "DNa02",
+   "side": "R",
+   "bodyId": 10360,
+   "role": "turn"
+  },
+  {
+   "type": "DNa01",
+   "side": "L",
+   "bodyId": 10442,
+   "role": "turn"
+  },
+  {
+   "type": "DNa01",
+   "side": "R",
+   "bodyId": 10760,
+   "role": "turn"
+  },
+  {
+   "type": "DNb05",
+   "side": "L",
+   "bodyId": 10118,
+   "role": "turn"
+  },
+  {
+   "type": "DNb05",
+   "side": "R",
+   "bodyId": 10065,
+   "role": "turn"
+  },
+  {
+   "type": "DNb06",
+   "side": "L",
+   "bodyId": 10888,
+   "role": "turn"
+  },
+  {
+   "type": "DNb06",
+   "side": "R",
+   "bodyId": 11067,
+   "role": "turn"
+  },
+  {
+   "type": "DNg13",
+   "side": "L",
+   "bodyId": 11074,
+   "role": "turn"
+  },
+  {
+   "type": "DNg13",
+   "side": "R",
+   "bodyId": 512006,
+   "role": "turn"
+  },
+  {
+   "type": "DNp09",
+   "side": "L",
+   "bodyId": 10783,
+   "role": "forward"
+  },
+  {
+   "type": "DNp09",
+   "side": "R",
+   "bodyId": 11177,
+   "role": "forward"
+  },
+  {
+   "type": "DNg100",
+   "side": "L",
+   "bodyId": 10045,
+   "role": "forward"
+  },
+  {
+   "type": "DNg100",
+   "side": "R",
+   "bodyId": 10056,
+   "role": "forward"
+  },
+  {
+   "type": "MDN",
+   "side": "L",
+   "bodyId": 11288,
+   "role": "backward"
+  },
+  {
+   "type": "MDN",
+   "side": "L",
+   "bodyId": 12348,
+   "role": "backward"
+  },
+  {
+   "type": "MDN",
+   "side": "R",
+   "bodyId": 10763,
+   "role": "backward"
+  },
+  {
+   "type": "MDN",
+   "side": "R",
+   "bodyId": 11332,
+   "role": "backward"
+  },
+  {
+   "type": "DNp01",
+   "side": "L",
+   "bodyId": 10010,
+   "role": "dodge"
+  },
+  {
+   "type": "DNp01",
+   "side": "R",
+   "bodyId": 10001,
+   "role": "dodge"
+  },
+  {
+   "type": "DNp02",
+   "side": "L",
+   "bodyId": 10197,
+   "role": "dodge"
+  },
+  {
+   "type": "DNp02",
+   "side": "R",
+   "bodyId": 10117,
+   "role": "dodge"
+  },
+  {
+   "type": "DNp04",
+   "side": "L",
+   "bodyId": 531898,
+   "role": "dodge"
+  },
+  {
+   "type": "DNp04",
+   "side": "R",
+   "bodyId": 11137,
+   "role": "dodge"
+  },
+  {
+   "type": "DNp11",
+   "side": "L",
+   "bodyId": 10259,
+   "role": "dodge"
+  },
+  {
+   "type": "DNp11",
+   "side": "R",
+   "bodyId": 10106,
+   "role": "dodge"
+  },
+  {
+   "type": "DNp103",
+   "side": "L",
+   "bodyId": 10417,
+   "role": "dodge"
+  },
+  {
+   "type": "DNp103",
+   "side": "R",
+   "bodyId": 10283,
+   "role": "dodge"
+  },
+  {
+   "type": "AOTU019",
+   "side": "L",
+   "bodyId": 10070,
+   "role": "attack_midline"
+  },
+  {
+   "type": "AOTU019",
+   "side": "R",
+   "bodyId": 10005,
+   "role": "attack_midline"
+  },
+  {
+   "type": "pIP10",
+   "side": "L",
+   "bodyId": 523998,
+   "role": "attack_pursuit"
+  },
+  {
+   "type": "pIP10",
+   "side": "R",
+   "bodyId": 11116,
+   "role": "attack_pursuit"
+  },
+  {
+   "type": "DNpe050",
+   "side": "L",
+   "bodyId": 11859,
+   "role": "unassigned"
+  },
+  {
+   "type": "DNpe050",
+   "side": "R",
+   "bodyId": 12177,
+   "role": "unassigned"
+  },
+  {
+   "type": "DNp67",
+   "side": "L",
+   "bodyId": 12325,
+   "role": "unassigned"
+  },
+  {
+   "type": "DNp67",
+   "side": "R",
+   "bodyId": 12435,
+   "role": "unassigned"
+  }
+ ],
+ "sha256": "650631872baf41748efec727659846e2fbb4ce41ce0ce79e3c237b5714b089ae",
+ "n_cells": 36,
+ "missing_types": [],
+ "source": "/home/unnati/flybrain-doom/outputs/graph/neurons.parquet"
+}
