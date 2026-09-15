@@ -1,4 +1,4 @@
-"""Frozen visual front end: EMD bank + form + chromatic channels (PLAN 3, items 4-7). ZERO trainable parameters.
+"""Frozen visual front end: EMD bank + form + chromatic channels. ZERO trainable parameters.
 
 Per decision step the caller hands over one frame batch (frameskip 4 = 114 ms) and gets the
 clamped rates for all K substeps as ``[K, B, n_clamped]`` float32 (``rates[k]`` is the
@@ -13,11 +13,11 @@ Pipeline (every time constant is an exact first-order exponential at dt = 114/K 
    current frame (``fill='mean'``, default) or with 0 (``fill='black'``, the pre-registered
    ablation). Columns with no coverage share one "virtual" column per eye carrying exactly the fill.
 2. Linear cross-fade of the column signals between the previous and current frame across the K
-   substeps (PLAN 3.6; step-and-hold into a correlator is the defect it avoids).
+   substeps (step-and-hold into a correlator is the defect it avoids).
 3. Per substep: 15 ms photoreceptor low-pass ``lp``; 200 ms running per-column mean ``m``; contrast
    against the adapted mean. Default ``contrast='tanh_weber'``:
    ``c = tanh((lp - m) / (m + eps))`` -- a symmetric saturating (Weber) contrast whose operating
-   point is the running mean, so absolute room brightness cancels (PLAN 3.5). The literal
+   point is the running mean, so absolute room brightness cancels. The literal
    hyperbolic Naka-Rushton form ``c = (lp - m) / (lp + m + 2 eps)`` is kept as
    ``contrast='naka_rushton'``; it makes OFF responses ~3x larger than ON at full contrast, which
    nothing downstream has a reason to want. ON = relu(c), OFF = relu(-c).

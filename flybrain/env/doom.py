@@ -1,6 +1,6 @@
 """Gymnasium-style wrapper over ViZDoom 1.3.0 for the LOBULA LOOP harness.
 
-Fixed harness choices (PLAN.md section 3):
+Fixed harness choices:
 - headless, RES_160X120, one RGB24 render per frame; GRAY8 is derived with BT.709 weights
   (measured: identical to the engine's own GRAY8 to within +/-1 grey level).
 - horizontal FOV 108 deg: the engine has no persistent FOV setting, so `fov 108` is sent as a
@@ -75,7 +75,7 @@ def scenario_cfg(scenario: str, scenarios_dir: str | os.PathLike | None = None) 
 
 
 def stage_to_local(dst: str | os.PathLike = "/tmp/flybrain_vizdoom") -> Path:
-    """Copy the scenario cfg/wad files to a node-local dir (PLAN: 64 workers must not read
+    """Copy the scenario cfg/wad files to a node-local dir (64 workers must not read
     WADs off NFS). Returns the dir to pass as `scenarios_dir`."""
     dst = Path(dst)
     dst.mkdir(parents=True, exist_ok=True)

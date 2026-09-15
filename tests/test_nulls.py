@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from flybrain.data import nulls
-from flybrain.data.nulls import (KINDS, NODE_KEYS, NULL_KEYS, REQUIRED_INVARIANTS, check_null,
+from flybrain.data.nulls import (KINDS, NODE_KEYS, NULL_KEYS, check_null,
                                  check_subgraph, edge_list, failed_invariants, load_graph,
                                  make_null, save_graph, synthetic_subgraph)
 

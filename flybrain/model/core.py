@@ -1,4 +1,4 @@
-"""Rate RNN over a MaleCNS subgraph (PLAN.md section 3, "Neuron model" / "Trainable parameters").
+"""Rate RNN over a MaleCNS subgraph .
 
     h <- h + (dt / tau_i) * ( -(h - v_rest_i) + (W r)_i )
     r  = min(softplus(h), r_max)
@@ -33,7 +33,7 @@ import argparse
 import json
 import math
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from typing import NamedTuple, Optional
 
 import numpy as np

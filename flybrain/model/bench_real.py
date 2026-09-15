@@ -1,7 +1,7 @@
 """Throughput / memory of ConnectomeCore on a REAL subgraph file (forward and forward+backward).
 
 Reports brain-steps/s = batch * K * decisions / wall, with optional per-decision gradient
-checkpointing (the K substeps are recomputed in backward, PLAN section 3 "Algorithm").
+checkpointing (the K substeps are recomputed in backward).
 
     python -m flybrain.model.bench_real --subgraph $FLYBRAIN_OUT/graph/subgraph_v5.npz --batch 64 256
 """

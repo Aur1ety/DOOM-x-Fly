@@ -1,4 +1,4 @@
-"""Gain matching and activity monitoring for ConnectomeCore (PLAN.md section 3).
+"""Gain matching and activity monitoring for ConnectomeCore.
 
 `match_gain` sets the global magnitude scale w0 by bisection (in log w0) so that the
 linearised operating-point gain -- the spectral radius of D * W restricted to dynamic nodes,

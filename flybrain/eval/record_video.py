@@ -45,7 +45,7 @@ def record(scenario: str, policy_name: str, episodes: int, out: Path, scale: int
     out.parent.mkdir(parents=True, exist_ok=True)
     writer = imageio.get_writer(str(out), fps=fps, codec="libx264", quality=7, macro_block_size=None)
     stats = []
-    H, W = 120, 160
+    H = 120
     strip = np.zeros((H * scale, panel_width, 3), np.uint8)
     for e in range(episodes):
         seed = seed_base + e

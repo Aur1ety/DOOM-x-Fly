@@ -1,4 +1,4 @@
-"""Stimulus battery and physiology metrics for the frozen front end (M3 gate / K3 in PLAN 2).
+"""Stimulus battery and physiology metrics for the frozen front end (M3 gate).
 
 Stimuli are functions of visual angle (azimuth, elevation, time). Two ways to present them:
 
@@ -28,7 +28,6 @@ import time
 import numpy as np
 import torch
 
-from flybrain import OUT_DIR
 from flybrain.vision.frontend import FrontEnd
 from flybrain.vision.geometry import CLAMPED_TYPES, Geometry, DEFAULT_PATH, pixel_directions
 
