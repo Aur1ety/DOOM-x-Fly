@@ -1,0 +1,23 @@
+[project]
+name = "flybrain"
+version = "0.0.1"
+description = "DOOMxFly: the MaleCNS fruit-fly connectome, simulated unchanged, plays Doom E1M1 through a hand-built eye model and a trained decision layer"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy", "scipy", "pandas", "pyarrow", "numba", "torch", "vizdoom>=1.3", "gymnasium",
+  "nvidia-ml-py", "psutil", "Pillow>=10.1", "imageio", "imageio-ffmpeg",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ""
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["flybrain*"]

@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+data/
+outputs/
+*.npz
+*.parquet
+*.pt
+*.ckpt
+*.log
+.DS_Store
+videos/
+data_wads/
+*.wad
+
+scratch/
