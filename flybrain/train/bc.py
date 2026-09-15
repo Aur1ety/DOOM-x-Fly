@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import time
 from pathlib import Path
 
@@ -353,7 +352,7 @@ def dagger_record(student_ckpt: Path, subgraph: Path, teacher_ckpt: Path, scenar
     ep_id = np.arange(envs); next_ep = envs; step_in_ep = np.zeros(envs, np.int64)
     rng = np.random.default_rng(seed_base)
     G, R, L, A, E, S, RW = [], [], [], [], [], [], []
-    t0 = time.time(); n_ep_done = 0; ep_rewards = np.zeros(envs); finished = []
+    t0 = time.time(); ep_rewards = np.zeros(envs); finished = []
     with torch.no_grad():
         while len(G) * envs < n_decisions:
             gray = torch.from_numpy(obs["gray"].copy())

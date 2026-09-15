@@ -185,7 +185,7 @@ def bench_one(name: str, g: K.SparseGraph, B: int, T: int, train: bool, reps: in
     if is_cuda:
         out["peak_alloc_mib"] = torch.cuda.max_memory_allocated() / MIB
         out["peak_reserved_mib"] = torch.cuda.max_memory_reserved() / MIB
-    del values, h0
+    values = h0 = None                                     # drop the local references before empty_cache()
     if is_cuda:
         torch.cuda.empty_cache()
     return out

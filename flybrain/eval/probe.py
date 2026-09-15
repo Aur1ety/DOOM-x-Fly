@@ -1,4 +1,4 @@
-"""Gate 0 (PLAN M4): can the frozen, gain-matched connectome's descending population decode the enemy?
+"""Gate 0: can the frozen, gain-matched connectome's descending population decode the enemy?
 
 Two stages, no training of any agent:
 
@@ -9,7 +9,7 @@ Two stages, no training of any agent:
           descending / visual-projection / readout populations to the targets, for the real
           subgraph, every null graph given, and the front end alone (random projection, no core).
           Gate: held-out enemy-azimuth R^2 >= 0.50 from the DN population AND >= +0.10 over the
-          mean of the N1 rewires (PLAN M4).
+          mean of the N1 rewires.
 
     python -m flybrain.eval.probe record --scenario take_cover --decisions 40000 --out $FLYBRAIN_OUT/probe/take_cover.npz
     python -m flybrain.eval.probe run --frames $FLYBRAIN_OUT/probe/take_cover.npz \
@@ -253,7 +253,7 @@ def run(frames_path: Path, subgraph: Path, nulls: list[Path], geometry: Path, ne
               + f" | {res['seconds']:.0f}s", flush=True)
         del core; torch.cuda.empty_cache() if device.startswith("cuda") else None
 
-    # gate (PLAN M4): DN population, enemy azimuth; projectile azimuth reported alongside for take_cover
+    # gate: DN population, enemy azimuth; projectile azimuth reported alongside for take_cover
     a = results["graphs"]["A"]["probes"]
     nulls_r2 = [results["graphs"][n]["probes"]["dn"]["enemy_azimuth"]["r2"] for n in results["graphs"] if n != "A"]
     gate = {"r2_A_dn": a["dn"]["enemy_azimuth"]["r2"], "r2_null_dn_mean": float(np.nanmean(nulls_r2)) if nulls_r2 else float("nan"),

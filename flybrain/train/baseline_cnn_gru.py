@@ -1,5 +1,5 @@
 """M2 harness smoke test: single-process PPO with truncated BPTT for a small CNN+GRU agent on
-the `flybrain.env` wrapper. Hyper-parameters follow PLAN.md section 3 "Algorithm" (T=32, GAE
+the `flybrain.env` wrapper. Hyper-parameters are the usual ones (T=32, GAE
 0.95/0.99, clip 0.2, 2 epochs, Adam 3e-4 linear decay, entropy 0.003 -> 0.001 with a hard
 floor, value coef 0.5, grad clip 0.5). Both terminated and truncated episodes cut the value
 bootstrap (simplification, noted).
@@ -216,7 +216,7 @@ class Trainer:
         return out
 
     def degeneracy_check(self, batch, stats) -> dict[str, Any]:
-        """Anti-degeneracy monitor (PLAN): action histogram + entropy floor + restart hook."""
+        """Anti-degeneracy monitor: action histogram + entropy floor + restart hook."""
         hist = torch.bincount(batch["act"].reshape(-1), minlength=N_ACTIONS).float()
         hist = (hist / hist.sum()).tolist()
         self.low_entropy_streak = self.low_entropy_streak + 1 if stats["entropy"] < self.cfg.collapse_entropy else 0

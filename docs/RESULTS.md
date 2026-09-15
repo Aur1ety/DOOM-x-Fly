@@ -1,6 +1,6 @@
-# Results — a connectome-constrained agent that plays ViZDoom (2026-09-14/15)
+# Results: a connectome-constrained agent that plays ViZDoom (2026-09-14/15)
 
-**Status: E1M1 (the real first level of Doom) delivered — 57 % of runs reach the exit, reactive, not a
+**Status: E1M1 (the real first level of Doom) delivered: 57 % of runs reach the exit, reactive, not a
 memorised route (§6). take_cover delivered earlier (§1–3, §5); defend_the_line not solved (§4).**
 
 All numbers measured on the Intel Unnati cluster (node1: 2× A30). Scenario take_cover unless stated.
@@ -17,8 +17,8 @@ greedy actions. IQM = interquartile mean.
 | labels-buffer dodging script | 0 | 273 | 267 [250, 285] |
 | CNN+GRU PPO teacher (`m2_tc_rs01`, 2 M decisions, reward scale 0.01) | ~0.4 M | 866 | 784 [673, 920] |
 | **connectome agent v1**: frozen MaleCNS subgraph v5 (108,062 dynamic + 30,906 clamped neurons, 4,639,332 synapses, gain-matched at rest, w0 = 0.00828) + linear readout of its 1,312 descending neurons (rates + first differences, standardised) | **21,000** (readout only) | **565** | **509 [438, 603]** |
-| connectome agent v1, **blindfolded** (black frames) | — | 179 | 168 [156, 183] |
-| connectome agent v1, flat-grey frames | — | 186 | 174 [159, 192] |
+| connectome agent v1, **blindfolded** (black frames) | - | 179 | 168 [156, 183] |
+| connectome agent v1, flat-grey frames | - | 186 | 174 [159, 192] |
 
 The agent's score collapses to the stand-still floor without vision: the behaviour is driven by the
 frames through the frozen wiring, not by internal dynamics. Three-episode video (game view + the
@@ -57,15 +57,15 @@ train the readout alone at LR 1e-2, leave the wiring frozen.
 Teachers: PPO attempt 1 collapsed onto one action (18.3 kills); attempt 2 with a stronger entropy
 bonus reached **19.5 kills** without collapsing (random 8.4, hold-fire 11.0, labels-aiming script
 20.7). Frozen-wiring + linear readout cloned from teacher 2 (held-out agreement 0.727): **16.3
-kills normal, 16.3 blindfolded** — it presses attack 95–99 % of the time; a copy of the teacher's
+kills normal, 16.3 blindfolded**; it presses attack 95–99 % of the time; a copy of the teacher's
 dominant habit, not a reactive policy. Cloning the labels-aiming script instead (60 k decisions:
 69 % fire, 31 % turns; frozen wiring + linear readout, held-out agreement 0.667): **12.7 kills with
-vision vs 10.4 blindfolded** (IQM 11.0 [10.0, 12.1] vs 9.0 [8.4, 9.8]) — a real but small
+vision vs 10.4 blindfolded** (IQM 11.0 [10.0, 12.1] vs 9.0 [8.4, 9.8]), a real but small
 reactivity gap; it turns 8 % of the time vs the script's 31 %. Enemy azimuth is less decodable
 from the descending neurons on this scenario (Gate 0 R² 0.41 vs 0.46). The nonlinear-readout
-variant collapsed onto "fire" (99 %): 16.2 kills with vision vs 16.5 blind — not reactive. A
+variant collapsed onto "fire" (99 %): 16.2 kills with vision vs 16.5 blind, not reactive. A
 class-balanced cloning run (turn decisions up-weighted 1/frequency) over-corrected: with vision it
-turns 68 % of the time (mostly right) and scores 8.3 kills, blindfolded it fires and scores 15.9 —
+turns 68 % of the time (mostly right) and scores 8.3 kills, blindfolded it fires and scores 15.9:
 strongly input-dependent, but not a competent policy. **defend_the_line stays unsolved with the
 frozen-wiring recipe**: enemy azimuth is only weakly linearly available in the descending neurons
 (Gate 0 R² 0.41), and every readout either ignores it (fire-only) or over-reacts to it.
@@ -73,16 +73,16 @@ frozen-wiring recipe**: enemy azimuth is only weakly linearly available in the d
 ## 5. take_cover: pushing past the linear-readout plateau
 
 DAgger round (`bc3b_frozen_lin_d1`: 40 k student-visited states labelled by the teacher, readout
-retrained; held-out agreement 0.784): **505 mean / 465 IQM [380, 569]**, blindfolded 179 — no
+retrained; held-out agreement 0.784): **505 mean / 465 IQM [380, 569]**, blindfolded 179, no
 better than v1 (565 / 509 [438, 603]); the linear readout of the frozen wiring plateaus at
 ~500–560. Two variants: (a) unfreezing the 4.86 M synapse magnitudes at LR 1e-4 with a drift
 penalty, warm-started from v1, destabilised within two epochs (gradient norms 470 → 970, KL rising
 0.39 → 0.92, agreement falling) and was stopped; (b) **frozen wiring with a 256-unit nonlinear
 readout** (`bc4b_frozen_mlp`, 4 epochs on teacher + DAgger data, held-out agreement 0.793):
-**633 mean / 555 IQM [475, 632]**, blindfolded 171 — the best agent so far, wiring still untouched.
+**633 mean / 555 IQM [475, 632]**, blindfolded 171, the best agent so far, wiring still untouched.
 Demo video (5 episodes, mean 656): `connectome_take_cover_frozen_mlp_v2.mp4` (server `outputs/videos/`).
 A second DAgger round on this agent (`bc4c_frozen_mlp_d2`, 40 k more student-visited states,
-held-out agreement 0.792) scored **488 / 435 IQM [364, 521]**, blindfolded 171 — worse; DAgger does
+held-out agreement 0.792) scored **488 / 435 IQM [364, 521]**, blindfolded 171, worse; DAgger does
 not help here (the teacher's advice on the weaker student's trajectories is inconsistent with its
 own play). Final take_cover agent: `bc4b_frozen_mlp` (633 / 555).
 
@@ -102,13 +102,13 @@ gain matching) behind the same hand-built eye model, read out by a 256-unit two-
 rate changes of 10,511 neurons (1,312 descending + 9,199 visual projection neurons; 5.4 M trained parameters,
 all in the head). Actions are *sampled* from the head's distribution at temperature 1.25.
 
-Training: imitation of a privileged scripted navigator (map geometry + player position; 98 % exits) —
+Training: imitation of a privileged scripted navigator (map geometry + player position; 98 % exits):
 200 demonstration runs (144,808 decisions, 5 % random-movement bursts for coverage), then 3 DAgger rounds
 (the agent drives, the navigator labels; 48 runs each). Labels the navigator produced from hidden state
 (random un-stick wiggles, off-grid positions) are masked from the loss. Round 3 was chosen on 32 validation
 runs (seeds 10,000+); the table below is a separate, untouched block.
 
-### 6.1 Final test — 100 runs each, seeds 20,000–20,099, never used before
+### 6.1 Final test: 100 runs each, seeds 20,000–20,099, never used before
 
 | player | reached the exit [95 % CI] | mean best route progress [95 % CI] | median | died | timed out | kills |
 |---|---|---|---|---|---|---|
@@ -122,12 +122,12 @@ runs (seeds 10,000+); the table below is a separate, untouched block.
 | connectome agent, flat-grey frames | 0 % | 7 % [7, 8] | 6 % | 0 | 100 | 0.0 |
 | connectome agent, greedy (argmax) actions | 0 % | 10 % [9, 10] | 9 % | 0 | 100 | 0.0 |
 | navigator (privileged ceiling) | 98 % [95, 100] | 99 % [98, 100] | 100 % | 1 | 1 | 3.9 |
-| navigator, wide starts + sticky | 95 % [90, 99] | 98 % [96, 100] | 100 % | 4 | 1 | — |
-| replay, wide starts + sticky | 0 % | 35 % [31, 40] | 27 % | 42 | 58 | — |
+| navigator, wide starts + sticky | 95 % [90, 99] | 98 % [96, 100] | 100 % | 4 | 1 | - |
+| replay, wide starts + sticky | 0 % | 35 % [31, 40] | 27 % | 42 | 58 | - |
 
 Reading: the agent finishes the real level in 57 % of runs and on average gets 92 % of the way; the median
 run reaches the exit. Widening the starts and forcing 10 % repeated actions does not hurt (64 %, within
-noise), while the same perturbation drops the blind replay of a recorded run from 6 % to 0 % exits — the
+noise), while the same perturbation drops the blind replay of a recorded run from 6 % to 0 % exits; the
 route is not memorised. Feeding the agent its *own* frames in random order (same image statistics, wrong
 content) drops it to 0 % exits and 22 % progress; black or flat-grey frames leave it below the always-forward
 floor: the behaviour is driven by what it sees. Greedy (argmax) actions fail completely (0 %, 10 %): the
@@ -152,9 +152,9 @@ through the live path (99.8–100 % identical decisions).
 
 ### 6.3 Videos
 
-`videos/e1m1_fly_dashboard_runs_40000-40002.mp4` — the first three of twelve consecutive runs (seeds
+`videos/e1m1_fly_dashboard_runs_40000-40002.mp4`, the first three of twelve consecutive runs (seeds
 40,000–40,011, not selected; 7 of the 12 reached the exit): run 1 dies at 72 % of the route, runs 2 and 3
-reach the exit. `videos/e1m1_fly_dashboard_best_40004.mp4` — the fastest of those twelve (71 s of game
+reach the exit. `videos/e1m1_fly_dashboard_best_40004.mp4`, the fastest of those twelve (71 s of game
 time). Layout: the game at 1280×960; the simulated neurons' cell bodies at their scanned MaleCNS positions
 (119,524 of the 138,968 have a recorded soma; front view, fixed), each dot's brightness = its simulated rate
 above its own typical level, where the typical level and spread per neuron are measured once on a separate
@@ -172,9 +172,9 @@ Nothing drawn is decorative. (`flybrain/eval/dashboard.py`)
 2. Success needs stochastic actions at temperature 1.25; the greedy policy walks into walls. Some of the
    route progress is "noise finds the way out"; the scrambled-frames and replay controls bound how much
    (0 % and 6 % exits respectively).
-3. The head has 5.4 M parameters (a 256-unit MLP on 21,022 inputs) — a large trained component, though it
+3. The head has 5.4 M parameters (a 256-unit MLP on 21,022 inputs), a large trained component, though it
    sees only the connectome's rates and never the frames.
 4. The eye is a hand-built motion/contrast model, not fly vision; "fly plays Doom" is not claimed.
 5. Whether fly wiring beats random wiring is untested on E1M1 (Gate 0, `M0_report.md`, argues against it
-   on take_cover — and that measurement used a float16 feature cache, so it should be redone).
+   on take_cover, and that measurement used a float16 feature cache, so it should be redone).
 6. Skill 1 only; one level; dying is the dominant failure.

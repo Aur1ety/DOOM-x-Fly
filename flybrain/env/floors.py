@@ -1,4 +1,4 @@
-"""Scripted floor policies and the evaluation protocol (PLAN.md section 4, "Floors").
+"""Scripted floor policies and the evaluation protocol.
 
 Policies act on the 7-action space of `flybrain.env.doom` and see the same obs/info an agent
 sees. Evaluation: `n_episodes` episodes per policy per scenario on eval seeds (>= 10000),
@@ -76,7 +76,7 @@ class SpinFirePolicy(Policy):
 
 
 class CentroidPolicy(Policy):
-    """Labels-buffer heuristic on the nearest visible target's azimuth (PLAN: pixel-centroid).
+    """Labels-buffer heuristic on the nearest visible target's azimuth (pixel-centroid).
 
     Scenarios with ATTACK: turn toward the nearest enemy, fire when within `aim_deg`; scan
     right when nothing is visible. Scenarios without ATTACK (take_cover): strafe away from the

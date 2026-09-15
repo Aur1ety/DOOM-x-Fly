@@ -1,8 +1,8 @@
-"""Hex-column geometry of the MaleCNS optic lobes and the frozen pixel sampler (PLAN section 3, M3).
+"""Hex-column geometry of the MaleCNS optic lobes and the frozen pixel sampler.
 
 Everything here is FROZEN (zero trainable parameters) and identical across every arm.
 
-Approximations, stated once (the upgrade path is the published Zhao 2025 eye map, PLAN 3.2):
+Approximations, stated once (the upgrade path is the published Zhao 2025 eye map):
 
 * ``assignedOlHex1/2`` are axial coordinates on the medulla column lattice (Nern et al. 2025).
   We treat that lattice as PLANAR with a uniform inter-ommatidial angle ``SPACING_DEG`` = 5.7 deg
@@ -16,7 +16,7 @@ Approximations, stated once (the upgrade path is the published Zhao 2025 eye map
   T5 (Tm9 tip vs Tm1/Tm2/Tm4 centre) is computed as a cross-check only.
 * Azimuth is measured from the midline (right positive), elevation from the eye equator, taken
   as the dorso-ventral centroid of the lattice. The frontmost column of each eye sits at
-  -/+ ``OVERLAP_DEG``/2 (10 deg binocular overlap, PLAN 3.3).
+  -/+ ``OVERLAP_DEG``/2 (10 deg binocular overlap).
 * Cells of clamped types without hex coordinates (all T4/T5, Tm5a-c, TmY5a, plus a few cells of
   hex-bearing types) are placed in the column of their strongest hex-bearing presynaptic partner
   (else strongest postsynaptic partner, else unassigned and silent).
@@ -24,7 +24,7 @@ Approximations, stated once (the upgrade path is the published Zhao 2025 eye map
   the frame under a Gaussian acceptance function of FWHM ``FWHM_DEG`` (acceptance angle
   delta-rho ~5 deg, Gonzalez-Bellido 2011 PNAS 108:4224) truncated at 3 sigma. Acceptance mass
   that falls outside the frame, or outside the eye's half of the FOV split, is replaced at run
-  time by that eye's mean luminance, never by black (PLAN 3.4).
+  time by that eye's mean luminance, never by black.
 
 CLI: ``python -m flybrain.vision.geometry --build`` (runs on master, reads the feathers,
 writes ``$FLYBRAIN_OUT/vision/geometry_v1.npz``); ``--report`` prints the summary of a saved file.
@@ -40,7 +40,7 @@ import numpy as np
 
 from flybrain import MALECNS_DIR, OUT_DIR
 
-# The clamped input set I of PLAN 3.1, in the fixed channel order used by the front end.
+# The clamped input set, in the fixed channel order used by the front end.
 CLAMPED_TYPES = ("T4a", "T4b", "T4c", "T4d", "T5a", "T5b", "T5c", "T5d",
                  "Mi1", "Mi4", "Mi9", "Tm1", "Tm2", "Tm4", "Tm9",
                  "Tm20", "Tm5a", "Tm5b", "Tm5c", "TmY5a")
@@ -52,7 +52,7 @@ SIDES = ("L", "R")
 
 SPACING_DEG = 5.7      # inter-ommatidial angle
 FWHM_DEG = 5.7         # acceptance angle (FWHM of the Gaussian angular sensitivity)
-HFOV_DEG = 108.0       # ViZDoom horizontal FOV (PLAN 3.1)
+HFOV_DEG = 108.0       # ViZDoom horizontal FOV
 OVERLAP_DEG = 10.0     # binocular overlap band of the FOV split
 FRAME_W, FRAME_H = 160, 120
 TRUNC_SIGMA = 3.0
