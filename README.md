@@ -29,6 +29,8 @@ Two clips, with the game, the simulated neurons lighting up at their real positi
 - the fastest of 12 consecutive runs (71 seconds)
 - the first three of those 12, unedited: it dies once, then makes it twice
 
+There is also a short clip of the memory circuit learning (`flybrain/eval/mb_video.py`): an odour lights up its Kenyon cells, dopamine pairs, the output cell's response drops, an unpaired odour stays put, and the fly's choice changes.
+
 Too big for git. Links coming.
 
 ## What's real and what's mine
