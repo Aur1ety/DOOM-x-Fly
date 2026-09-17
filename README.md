@@ -60,6 +60,15 @@ Training takes a couple of hours on one A30. `python -m pytest tests/` runs the 
 
 A separate thread (write-up in `docs/RESULTS.md`, sections 7 to 9): the fly's own learning circuit, built from the same connectome plus the published dopamine plasticity rule, learns that an odour or a visual object predicts punishment or reward. It reproduces the measured odour-specific depression, holds several memories, and changes a simulated choice; the negatives are reported too. Same data as above; these run in seconds on CPU, except the two that need a GPU.
 
+The quickest look is the walkthrough, which teaches an odour and shows the fly's choices change:
+
+```bash
+python -m flybrain.eval.mb_build           # once: cache the mushroom-body wiring
+python -m flybrain.eval.mb_demo            # teach the fly, watch its choices change (add --modality visual)
+```
+
+The individual results:
+
 ```bash
 python -m flybrain.eval.mb_build                                   # cache the mushroom-body wiring from the full connectome
 python -m flybrain.eval.mb_olfactory --binary-code --wiring $FLYBRAIN_OUT/mb/mb_wiring.npz   # smell (section 7)
