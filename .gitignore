@@ -15,3 +15,6 @@ data_wads/
 *.wad
 
 scratch/
+
+# scratch literature notes (local only)
+lit_sweep.txt

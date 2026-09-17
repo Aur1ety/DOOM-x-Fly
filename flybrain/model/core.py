@@ -378,12 +378,29 @@ class ConnectomeCore(nn.Module):
         return torch.exp(ls)
 
     def edge_values(self) -> Tensor:
-        """Signed synaptic values W_e in CSR order (materialised; for monitoring / per_edge step)."""
+        """Signed synaptic values W_e in CSR order (materialised; for monitoring / per_edge step).
+
+        If a per-edge plasticity gain has been set (`set_edge_gain`), every edge value is scaled by it.
+        The gain is 1 everywhere except the plastic edges, so the frozen wiring is untouched unless a
+        plasticity module is driving it (see flybrain/model/mb_plasticity.py)."""
         if self.cfg.param == "per_edge":
-            return self.edge_sign * F.softplus(self.theta)
-        if self.cfg.param == "type_tied":
-            return self.edge_scale * self.bin_values()[self.bin_index]
-        return self.values_frozen
+            v = self.edge_sign * F.softplus(self.theta)
+        elif self.cfg.param == "type_tied":
+            v = self.edge_scale * self.bin_values()[self.bin_index]
+        else:
+            v = self.values_frozen
+        g = getattr(self, "edge_gain", None)
+        return v if g is None else v * g
+
+    @torch.no_grad()
+    def set_edge_gain(self, gain: Optional[Tensor]) -> None:
+        """Per-edge multiplicative factor applied in edge_values() (None clears it). Used for plasticity."""
+        if gain is None:
+            self.edge_gain = None
+            return
+        if gain.shape != (self.n_edges,):
+            raise ValueError(f"edge_gain must be [{self.n_edges}], got {tuple(gain.shape)}")
+        self.edge_gain = gain.to(self.sign.device, self.dtype)
 
     def n_trainable(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)

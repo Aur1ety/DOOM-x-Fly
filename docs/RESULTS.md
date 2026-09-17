@@ -178,3 +178,223 @@ Nothing drawn is decorative. (`flybrain/eval/dashboard.py`)
 5. Whether fly wiring beats random wiring is untested on E1M1 (Gate 0, `M0_report.md`, argues against it
    on take_cover, and that measurement used a float16 feature cache, so it should be redone).
 6. Skill 1 only; one level; dying is the dominant failure.
+
+
+## 7. Memory in the fly's own mushroom body (2026-09-16/17)
+
+Goal: not a memory bolted onto the model, but the fly's own memory circuit doing what it does in the animal:
+learn that an odour predicts punishment or reward, keep several such memories, and let them change a choice.
+Ground truth is published fly physiology and behaviour, fixed before the runs: Hige et al. 2015 (Neuron), one
+pairing block of an odour with the PPL1-gamma1pedc dopamine neuron depresses that odour's drive onto
+MBON-gamma1pedc>alpha/beta (MBON11) by about 80% in spikes and 90% in synaptic charge, the unpaired odour is
+unchanged; Owald et al. 2015, reward also works by depression, in the PAM compartments; Aso et al. 2014, MBON
+transmitter predicts valence; Tully and Quinn T-maze, wild-type single-cycle performance index 0.44 to 0.53.
+Learning rule: Gkanias, McCurdy, Nitabach and Webb 2022 (eLife) on KC->MBON synapses only,
+dW = -lr * delta_j * (k_i + W_ij - 1). Wiring comes from the full MaleCNS connectome (minconf 0.5, no weight
+threshold), cached once by `flybrain/eval/mb_build.py`. Code: `flybrain/model/mb_plasticity.py`,
+`flybrain/eval/mb_sparse.py`, `flybrain/eval/mb_olfactory.py`, `flybrain/eval/mb_behaviour.py`; results in
+`outputs/mb/olf5_*.json`. Everything runs on the CPU in seconds. Sections 7 to 9 were regenerated after an
+adversarial code review that found two real bugs (a Kenyon-cell code that drifted between the recurrent model's
+substeps, and a k-winners-take-all threshold sized to the whole Kenyon-cell pool rather than the driven
+subset); both are fixed here.
+
+### 7.1 Negative result: the Doom model's Kenyon cells cannot hold an odour
+
+In the uniform, gain-matched recurrent rate model used for Doom, the 4,064 Kenyon cells respond to every input
+the same way: with synthetic odours driving the projection neurons, every cell is active and no odour can be
+told from another. This is shown properly in section 9.1 (the fix for the drift bug, plus a decodability test,
+does not change it). The feedforward PN->KC drive alone is odour specific; the recurrent dynamics erase it. So
+the mushroom body is run as the circuit actually works: feedforward, with the real Kenyon-cell physiology
+applied and disclosed.
+
+### 7.2 The circuit, taken from the connectome
+
+Projection neurons -> Kenyon cells -> MBONs, plus the dopamine -> MBON wiring, all from the full connectome:
+
+| element | count |
+|---|---|
+| olfactory projection neurons (excitatory, uniglomerular; thermo/hygro VP glomeruli and GABAergic vPNs excluded) | 220 cells, 50 glomeruli |
+| Kenyon cells | 4,064 (3,755 receive olfactory input) |
+| MBONs | 97 cells, 37 types |
+| plastic KC->MBON connections | 61,210 |
+| PPL101 (punishment) -> MBON, pooled per type | lands on MBON11; 97% of all learning lands there |
+| PAM (313 cells, reward) -> MBON | MBON03, 05, 06 lead |
+
+Kenyon-cell physiology (disclosed): feedforward drive through the real PN->KC wiring, then k-winners-take-all
+keeping the top 5% of the Kenyon cells this pathway can drive (APL feedback). Result: 4.6% active per odour,
+cross-odour cosine 0.11, from the wiring alone. A "binary" reading (a cell fires or not, the spike-count
+analogue) is the main condition; odours are synthetic glomerulus sets; one rule call is one pairing block.
+
+### 7.3 What is calibrated and what is predicted
+
+With a binary code the paired drop at an MBON after p pairings is exactly (1 - (1 - lr * delta)^p), so its size
+is set by lr, not by the wiring. lr is set once so one pairing gives Hige's 90% at MBON11, and that number is a
+calibration, not a result. Everything else follows from the wiring and the rule and can fail:
+
+| endpoint (one pairing, odour A + PPL101, read at MBON11) | value | note |
+|---|---|---|
+| paired odour drop | 0.90 | calibrated to Hige |
+| unpaired odours, mean | 0.13 | = fraction of the odour's MBON11 drive through KCs shared with A; Hige: unchanged |
+| share of all lost drive landing on MBON11 | 0.97 | Hige: compartment specific |
+| reward (odour C + PAM), drop in PAM compartments / at MBON11 | 0.69 / 0.06 | Owald: reward depresses in PAM compartments |
+| A punished and C rewarded together: A / C | 0.85 / 0.69 | two memories in different compartments coexist |
+
+Generalisation follows glomerulus overlap:
+
+| test odour shares with A | 5/6 | 4/6 | 3/6 | 1/6 | 0/6 |
+|---|---|---|---|---|---|
+| drop at MBON11 | 0.65 | 0.45 | 0.31 | 0.12 | 0.06 |
+
+### 7.4 Controls that can fail
+
+| condition | paired | unpaired | share on MBON11 | reading |
+|---|---|---|---|---|
+| real wiring, binary code (main) | 0.90 | 0.13 | 0.97 | specific |
+| dopamine -> MBON map shuffled | 0.00 (lands on MBON10) | 0.00 | 0.00 | compartment is wiring-set |
+| dense code (no k-winners-take-all) | 0.90 | 0.43 | 0.97 | sparse code gives specificity |
+| second seed | 0.90 | 0.11 | 0.97 | robust |
+| degree-preserving PN->KC / KC->MBON shuffles | 0.90 | ~0.13 | ~0.97 | match; not a test, expected |
+
+The clear negative: at the calibrated strength the published rule cannot hold two memories in the same
+compartment, because every dopamine pulse also relaxes the synapses of silent Kenyon cells back toward rest.
+Real flies do hold several. Scaling that recovery term down (a rule change, disclosed) retains the first memory.
+
+### 7.5 Does the memory change what the fly does?
+
+Choice through the published valence map (71 approach MBONs, GABA or ACh; 26 avoidance, glutamate; MBON11 is
+GABAergic, so depressing it removes approach). P(choose X over Y) = sigmoid(beta (s(X) - s(Y))). Reciprocal
+T-maze performance index by beta: 0.05, 0.10, 0.20, 0.38, 0.62 at beta 1, 2, 4, 8, 16 (untrained 0 at every
+beta); the wild-type 0.44 to 0.53 is met near beta 10. Beta is fitted; the sign and ordering are not. Several
+memories change choices in the right order without fitting: A punished, C rewarded, D untouched give
+P(C over A) 0.48 -> 0.82, P(D over A) 0.50 -> 0.70; the shuffled dopamine map inverts this.
+
+### 7.6 Caveats (worst first)
+
+1. The mushroom body is run as a feedforward circuit lifted out of the recurrent model (7.1); section 9 puts it
+   back inside the recurrent brain and reports what survives.
+2. The 0.90 paired drop is calibrated, not predicted. The predictions are specificity, compartment,
+   generalisation, reward compartments, coexistence, and choice ordering.
+3. The published rule fails same-compartment coexistence at this strength; the fix shown is a rule change.
+4. Odours are synthetic; the antennal lobe is bypassed; there is no time axis, so timing is not tested.
+5. Binary Kenyon-cell reading is a choice (graded ceiling ~55%).
+
+## 8. Visual memory: the same circuit, a second sense (2026-09-17)
+
+The plan was smell first, then vision. The same mushroom-body model, switched to the fly's visual input
+pathway, tests whether it can also learn that a visual object predicts punishment or reward. All wiring is from
+the full connectome cache; the section 7 olfactory result reproduces on it. Code: `mb_olfactory.py
+--modality visual`, `mb_behaviour.py --modality visual`; results in `outputs/mb/vis5_*.json`, `beh5_vis.json`.
+
+### 8.1 The visual pathway is real but small
+
+Visual projection neurons reach the visual Kenyon cells (type KCg-d) through the ventral accessory calyx. This
+pathway is far smaller and weaker than the olfactory one, matching the biology:
+
+| pathway | connections | inputs reaching KCs | KCs reached | median synapse count |
+|---|---|---|---|---|
+| smell: olfactory PN to KC | 20,300 | 215 | 3,755 | 17 |
+| vision: VPN to KCg-d | 1,088 | 200 of 9,201 | 203 of 206 | 3 |
+
+A visual object is a random set of six of the 101 anatomical visual-projection types (lobula and medulla
+feature detectors), the visual analogue of glomeruli.
+
+### 8.2 The visual memory is specific, about as sharp as smell
+
+Kenyon-cell competition is applied to the driven visual subpopulation (the review found an earlier version
+sized the winner count to the whole 4,064-cell pool, which disabled competition among the ~200 visual cells and
+made vision look artificially coarse; fixed here). With the fix the visual code is sparse and distinct:
+
+| endpoint (one pairing, object A + PPL101, read at MBON11) | smell | vision |
+|---|---|---|
+| Kenyon cells active per stimulus | 4.6% (~188) | 0.4% (~17) |
+| cross-object code similarity | 0.11 | 0.10 |
+| paired drop at MBON11 | 0.90 (calibrated) | 0.90 (calibrated) |
+| unpaired objects, mean | 0.13 | 0.02 |
+| share of all learning landing on MBON11 | 0.97 | 0.95 |
+| generalisation, 5 of 6 channels shared | 0.65 | 0.79 |
+| reward (PAM) in reward compartments / at MBON11 | 0.69 / 0.06 | 0.65 / 0.06 |
+| A punished and C rewarded together: A / C | 0.85 / 0.69 | 0.85 / 0.65 |
+
+Reading: the same circuit learns visual punishment and reward, lands them at the correct output cells and
+dopamine compartments, holds a punishment and a reward memory at once, and does so with specificity at least as
+sharp as smell (unpaired leakage 0.02, lower than smell's 0.13, because the visual code is sparser). Controls:
+shuffling the dopamine-to-MBON map destroys it (paired 0.0004, lands on MBON10 not MBON11); a second seed
+agrees (unpaired 0.08); the dense-code control (no competition) raises leakage to 0.19, so the sparse code is
+what gives the specificity, as for smell.
+
+### 8.3 Visual memory changes choice, moderately
+
+Through the same valence map (one pairing): the reciprocal T-maze index rises to a peak of about 0.27 near
+gain 8 to 16 (untrained 0 at every gain), versus smell's 0.62. So visual memory does shift choice in the right
+direction, less strongly than smell. The learned change also reaches the descending neurons more here than for
+the pure feedforward olfactory readout (two-hop relative change 0.019 for the trained object versus 0.001 for
+an untouched one), because the visual output cells sit on shorter paths to steering, though this is still a
+small signal. Visual behaviour is real but weaker than olfactory, consistent with visual conditioning being
+harder in flies.
+
+## 9. Putting the memory back inside the recurrent brain (2026-09-17)
+
+Sections 7 and 8 run the mushroom body feedforward. This section tests whether the memory can live inside the
+full recurrent brain that plays Doom (138,968 neurons, 4.64 M connections). Code: `flybrain/eval/mb_embed.py`;
+results in `outputs/mb/embed2.json`, `outputs/mb/kcsparse2_*.json`.
+
+### 9.1 Why it cannot be done the naive way
+
+The recurrent gain-matched model cannot compute a sparse, stimulus-specific Kenyon-cell code. Driving the
+projection neurons (re-imposed every substep, so the odour is not overwritten between integration steps) and
+sweeping the Kenyon-cell threshold gives either every cell active or every cell silent, and in neither case can
+odour identity be recovered. This is tested three ways so it is not a metric artifact: raw cosine, cosine after
+removing the per-cell common-mode pedestal, and nearest-neighbour decoding of odour identity from the code.
+
+| Kenyon-cell threshold | fraction active | centered cross-odour cosine | nearest-neighbour odour decoding (chance 0.17) |
+|---|---|---|---|
+| default | 1.00 | -0.20 | 0.00 |
+| raised a little | 0.85 | -0.20 | 0.00 |
+| raised more | 0.00 | degenerate | 0.00 |
+
+Decoding is at or below chance everywhere: the recurrent code carries no recoverable odour identity. This is a
+property of the uniform rate model, not the fly; real Kenyon cells are feedforward coincidence detectors.
+
+### 9.2 The faithful embedding, and what it shows
+
+So the Kenyon-cell code is computed the way the cell works (real PN->KC wiring plus k-winners-take-all) and
+injected at the Kenyon-cell layer of the full recurrent core, pinned every substep; the learned KC->MBON
+changes are applied to the core's own edges; and the memory is read at the output cells and descending neurons
+through the full recurrent brain. The memory lives on the connectome's real synapses; only Kenyon-cell activity
+is computed feedforward, which is disclosed.
+
+| endpoint, inside the full recurrent brain (one pairing, odour A + PPL101) | value |
+|---|---|
+| MBON11 fraction of input from Kenyon cells (wiring) | 0.88 |
+| unpaired odours, mean drop at MBON11 (wiring-derived) | 0.10 |
+| paired odour A, drop at MBON11 (calibrated, capped) | 0.68 |
+| paired-over-unpaired specificity ratio | 7 to 1 |
+| descending-neuron drive, whole-brain relative change (trained) | 0.0003 |
+| descending-neuron drive, largest single-neuron change (on a scale of 5) | 0.006 |
+| descending neurons changing by more than 1% of the peak rate | 0 |
+
+Reading. The memory does express inside the full recurrent brain, and specifically: the trained odour drops
+about seven times more than unpaired odours at MBON11, on the connectome's real synapses. The specificity is
+the wiring-derived result; the paired magnitude (0.68) is a calibrated quantity, and it caps at 0.68 even at
+the maximum learning rate, because once the KC->MBON11 synapses are fully depressed the recurrent loop still
+restores part of the output. The honest negative: the change does not reach the descending neurons. The
+whole-brain relative change is 0.0003, the single most-affected steering neuron moves 0.006 on a scale of 5,
+and not one descending neuron changes by even 1% of the peak firing rate. The memory-to-action loop is not
+closed inside this model; the behaviour results of sections 7 and 8 go through the published valence map.
+
+A methodology note, in the spirit of reporting what broke: the adversarial review of this code found that an
+initial version pinned the Kenyon-cell code only once per decision, but the core runs six substeps per
+decision, so the injected code drifted and the memory looked completely absent. Pinning every substep fixed it.
+The same drift bug was found and fixed in the sparse-code test of 9.1. The injection has to hold at the
+integration timescale, not the decision timescale.
+
+### 9.3 Caveats (worst first)
+
+1. The memory expresses at the output cell but not at the descending neurons (largest change 0.006 of 5): it
+   does not yet change what the modelled fly does. Closing that loop is unsolved.
+2. Kenyon-cell activity is injected feedforward, not computed by the recurrent model, because the recurrent
+   model cannot produce the code (9.1). This is faithful to Kenyon-cell physiology but is a modelling choice.
+3. The paired magnitude is calibrated and caps near 0.68; only the specificity ratio and the descending-neuron
+   readout are wiring-derived claims.
+4. The descending-neuron readout runs on the weight-thresholded Doom subgraph, and the operating point drives
+   many cells near their rate ceiling, both of which can only reduce the apparent reach of the memory.
