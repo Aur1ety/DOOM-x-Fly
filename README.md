@@ -56,6 +56,19 @@ python -m flybrain.eval.dashboard --ckpt $FLYBRAIN_OUT/e1m1/v2_r3/student.pt --t
 
 Training takes a couple of hours on one A30. `python -m pytest tests/` runs the tests. The scripts `sync.sh`, `remote.sh`, `detach.sh` and `gpu_window.sh` are for my own two-machine setup, ignore them. Don't run the whole-brain step of `flybrain/model/bench.py` on CPU, it tries to build a dense 139k x 139k gradient.
 
+## Memory: the fly's own mushroom body
+
+A separate thread (write-up in `docs/RESULTS.md`, sections 7 to 9): the fly's own learning circuit, built from the same connectome plus the published dopamine plasticity rule, learns that an odour or a visual object predicts punishment or reward. It reproduces the measured odour-specific depression, holds several memories, and changes a simulated choice; the negatives are reported too. Same data as above; these run in seconds on CPU, except the two that need a GPU.
+
+```bash
+python -m flybrain.eval.mb_build                                   # cache the mushroom-body wiring from the full connectome
+python -m flybrain.eval.mb_olfactory --binary-code --wiring $FLYBRAIN_OUT/mb/mb_wiring.npz   # smell (section 7)
+python -m flybrain.eval.mb_olfactory --binary-code --wiring $FLYBRAIN_OUT/mb/mb_wiring.npz --modality visual   # vision (section 8)
+python -m flybrain.eval.mb_behaviour --wiring $FLYBRAIN_OUT/mb/mb_wiring.npz --modality olfactory --binary-code # does it change choice
+python -m flybrain.eval.mb_sparse --device cuda:0                  # why the recurrent model can't hold the code (section 9.1)
+python -m flybrain.eval.mb_embed --device cuda:0 --lr-auto         # embedding the memory in the recurrent brain (section 9.2)
+```
+
 ## Where things are
 
 The package is still called `flybrain` from before the project had a name.
