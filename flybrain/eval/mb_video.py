@@ -170,7 +170,7 @@ def main(argv=None):
     ap.add_argument("--subgraph", type=Path, default=OUT_DIR / "graph" / "subgraph_v5.npz")
     ap.add_argument("--neurons", type=Path, default=OUT_DIR / "graph" / "neurons.parquet")
     ap.add_argument("--annotations", type=Path, default=None, help="MaleCNS body-annotations feather (for soma positions)")
-    ap.add_argument("--beta", type=float, default=8.0)
+    ap.add_argument("--beta", type=float, default=11.0)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", type=Path, default=OUT_DIR / "videos" / "mb_memory.mp4")
     ap.add_argument("--png-dir", type=Path, default=None); ap.add_argument("--frames", type=int, nargs="+", default=[30, 120, 300])

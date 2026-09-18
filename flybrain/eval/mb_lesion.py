@@ -50,6 +50,7 @@ def run(a) -> dict:
     m11 = intact.type_mask("MBON11")
     codes0 = [intact.kc_code(intact.odour(o)) for o in odours]
     lr = intact.calibrate_lr(codes0[0], intact.compartment_mask("punish"), a.target, "punish")
+    intact_drive_m11 = float(intact.mbon_response(codes0[0])[m11].sum())        # untrained MBON11 drive to A, intact
 
     def one(lesion: str) -> dict:
         mb = build(sparsity=1.0 if lesion == "APL_disinhibited" else 0.05)
@@ -61,9 +62,12 @@ def run(a) -> dict:
             val = val.clone(); val[m11] = 0.0
         if lesion == "KC_to_MBON_cut":
             mb.e_base = torch.zeros_like(mb.e_base)
-        kc_mask = None
-        if lesion == "KCg-m_silenced" and kc_type is not None:
-            kc_mask = torch.as_tensor(kc_type == "KCg-m")                      # these KCs cannot fire
+        kc_mask = None; applied = True
+        if lesion == "KCg-m_silenced":
+            if kc_type is not None and bool(np.char.startswith(kc_type.astype(str), "KCg-m").any()):
+                kc_mask = torch.as_tensor(np.char.startswith(kc_type.astype(str), "KCg-m"))   # these KCs cannot fire
+            else:
+                applied = False                                               # no KCg-m in this wiring/subgraph -> do not report intact-looking numbers
 
         def code(o):
             c = mb.kc_code(mb.odour(o))
@@ -88,14 +92,19 @@ def run(a) -> dict:
         def drop(i):
             b = float(before[i][m11].sum()); return round(1 - float(after[i][m11].sum()) / b, 4) if b > 0 else None
         what, expect = LESIONS[lesion]
-        return {"lesion": lesion, "what": what, "real_fly": expect,
+        drive = float(before[0][m11].sum())
+        return {"lesion": lesion, "what": what, "real_fly": expect, "applied": applied,
                 "memory_paired_MBON11": drop(0), "memory_unpaired_MBON11": round(float(np.mean([drop(i) for i in range(1, 4) if drop(i) is not None])), 4) if drop(1) is not None else None,
+                "mbon11_drive_to_A": round(drive, 2), "drive_loss_vs_intact": round(1 - drive / intact_drive_m11, 4) if intact_drive_m11 > 0 else None,
                 "avoid_A_before": round(s_avoid0, 4), "avoid_A_after": round(p_avoid(after), 4)}
 
     res = {"anchor": {"lr": round(lr, 4), "target_drop_MBON11": a.target, "pairings": a.pairings, "beta": a.beta},
            "lesions": [one(L) for L in LESIONS],
-           "note": "lr is calibrated once on the intact circuit and held fixed; each lesion then shows how much of the "
-                   "memory and the avoidance survives. avoid_A ~0.5 = no learned avoidance.",
+           "note": "lr is calibrated once on the intact circuit and held fixed. The fractional memory_paired_MBON11 "
+                   "drop is calibration-locked under the binary code (~target when any trained KC->MBON11 edge "
+                   "survives, else None), so it CANNOT express graded impairment; use drive_loss_vs_intact (the "
+                   "untrained MBON11 drive to A lost to the lesion) as the graded memory measure and avoid_A_after "
+                   "as the behavioural readout. avoid_A ~0.5 = no learned avoidance.",
            "elapsed_s": round(time.time() - t0, 1)}
     return res
 

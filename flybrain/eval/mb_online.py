@@ -91,7 +91,7 @@ def run(a) -> dict:
     stim = [rng.choice(len(mb.glom_names), size=6, replace=False) for _ in range(4)]
     codes = [mb.kc_code(mb.odour(s)) for s in stim]
     m11 = mb.type_mask("MBON11")
-    before = mb.mbon_response(codes[0])
+    before_all = [mb.mbon_response(c) for c in codes]; before = before_all[0]   # per-odour fresh-W baselines
 
     da = da_pulse_train(a.pulses, a.da_onset, a.da_freq, a.da_width)
     std = {"dt": a.dt, "odour_on": 0.0, "odour_off": a.odour_dur, "da_starts": da, "da_width": a.da_width,
@@ -102,8 +102,8 @@ def run(a) -> dict:
         kw = {**std, **over}
         mb.reset(); train_episode(mb, code, us, eta=eta, **kw)
 
-    # 1. standard forward episode: paired A vs unpaired B
-    episode(codes[0]); paired = drop_at(mb, before, codes[0], m11); unpaired = drop_at(mb, before, codes[1], m11)
+    # 1. standard forward episode: paired A vs unpaired B (each odour probed against its OWN baseline)
+    episode(codes[0]); paired = drop_at(mb, before_all[0], codes[0], m11); unpaired = drop_at(mb, before_all[1], codes[1], m11)
 
     # 2. TIMING LAW (emergent): dopamine onset swept relative to the odour. forward should write, backward should not.
     timing = {}

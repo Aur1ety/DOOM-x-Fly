@@ -100,8 +100,10 @@ def run(a) -> dict:
         train(1, "punish", a.pairings); sB = score(responses())
         half2 = p_choose(sB[0], sB[1], beta) - p_choose(sB[1], sB[0], beta)
         s0 = score(base)
-        pre = 0.5 * ((p_choose(s0[1], s0[0], beta) - p_choose(s0[0], s0[1], beta)) + (p_choose(s0[0], s0[1], beta) - p_choose(s0[1], s0[0], beta)))
-        pi[beta] = {"PI_trained": round(0.5 * (half1 + half2), 4), "PI_untrained": round(pre, 4),
+        # PI_untrained under the reciprocal design is identically 0 (tautology); report instead the innate A-vs-B
+        # bias of the untouched circuit (non-reciprocal), which CAN be nonzero if the odours differ at baseline.
+        pi[beta] = {"PI_trained": round(0.5 * (half1 + half2), 4),
+                    "innate_bias_A_vs_B": round(p_choose(s0[0], s0[1], beta) - 0.5, 4),
                     "P_choose_punished_A_vs_B": round(p_choose(sA[0], sA[1], beta), 4)}
     res["tmaze_PI_by_beta"] = pi
     res["ground_truth_PI"] = "wild type, one training cycle: 0.44 (automated) - 0.53 (manual); Tully & Quinn design"

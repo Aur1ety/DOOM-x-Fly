@@ -126,7 +126,7 @@ def main(argv=None):
     ap.add_argument("--subgraph", type=Path, default=OUT_DIR / "graph" / "subgraph_v5.npz")
     ap.add_argument("--neurons", type=Path, default=OUT_DIR / "graph" / "neurons.parquet")
     ap.add_argument("--modality", default="olfactory", choices=["olfactory", "visual"])
-    ap.add_argument("--pairings", type=int, default=1); ap.add_argument("--beta", type=float, default=8.0)
+    ap.add_argument("--pairings", type=int, default=1); ap.add_argument("--beta", type=float, default=11.0)
     ap.add_argument("--seed", type=int, default=0)
     run(ap.parse_args(argv))
 
