@@ -59,6 +59,12 @@ def main(argv=None):
     W_km = submat(kc, mbon).tocoo()                              # [MBON, KC]
     W_dan = np.asarray(submat(dan, mbon).todense())             # [MBON, nDAN] dense (small)
 
+    # APL feedback inhibitor: KC -> APL (drives it) and APL -> KC (inhibits them). The real substrate for sparse
+    # coding, so the Kenyon code can be computed from the wiring instead of a hand-set k-winners-take-all.
+    apl = ann.bodyId[ann["type"].str.startswith("APL")].to_numpy()
+    W_kc_apl = np.asarray(submat(kc, apl).todense()) if len(apl) else np.zeros((0, len(kc)))   # [APL, KC]
+    W_apl_kc = np.asarray(submat(apl, kc).todense()) if len(apl) else np.zeros((len(kc), 0))   # [KC, APL]
+
     # memory -> steering: MBON -> DN direct, and MBON -> one interneuron -> DN (2-hop), both [DN, MBON]
     dn = ann.bodyId[ann.superclass == "descending_neuron"].to_numpy()
     dn_type = ann.set_index("bodyId")["type"].reindex(dn).fillna("").to_numpy()
@@ -81,7 +87,8 @@ def main(argv=None):
         pk_data=W_pk.data, pk_indices=W_pk.indices, pk_indptr=W_pk.indptr, pk_shape=W_pk.shape,
         vk_data=W_vk.data, vk_indices=W_vk.indices, vk_indptr=W_vk.indptr, vk_shape=W_vk.shape,
         km_row=W_km.row, km_col=W_km.col, km_data=W_km.data, km_shape=W_km.shape,
-        dan_mbon=W_dan, dn_type=dn_type.astype("U16"), dn_mbon_direct=W1, dn_mbon_2hop=W2)
+        dan_mbon=W_dan, dn_type=dn_type.astype("U16"), dn_mbon_direct=W1, dn_mbon_2hop=W2,
+        kc_apl=W_kc_apl, apl_kc=W_apl_kc)
     vt = pd.Series(vpn_type); gt = pd.Series(opn_glom)
     print(f"KC {len(kc)} | olf PN {len(opn)} ({gt.nunique()} glom) | visual PN {len(vpn)} ({vt.nunique()} types) | "
           f"MBON {len(mbon)} | DAN {len(dan)} | W_pk {W_pk.nnz} W_vk {W_vk.nnz} W_km {W_km.nnz}")
