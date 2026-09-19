@@ -67,7 +67,7 @@ def run(a) -> None:
     print("  connectome wiring + the published dopamine rule, nothing scripted")
     print(rule("="))
     print(f"\nThe fly can tell several {thing}s apart. Its output cells carry a value:")
-    print(f"  {counts['approach']} MBON types say approach (GABA / acetylcholine),"
+    print(f"  {counts['approach']} MBONs say approach (GABA / acetylcholine),"
           f" {counts['avoid']} say avoid (glutamate).")
     s0 = score(base); pa = p_choose(s0[0], s0[1])
     lead = "it has no built-in preference" if abs(pa - 0.5) < 0.1 else "its starting preference comes from the wiring alone"

@@ -77,7 +77,7 @@ def frame(mb, brain, kc_node_of, st, phase, cap, active_code, mbonA, mbonB, choi
     act = np.zeros(len(brain.nodes), np.float32)
     if active_code is not None:
         node_on = np.zeros(mb._n_nodes, bool)
-        node_on[mb.kc[active_code.numpy() > 0]] = True
+        sel = kc_node_of[active_code.numpy() > 0]; node_on[sel[sel >= 0]] = True     # KC -> subgraph node (-1 = not in it)
         act = node_on[brain.nodes].astype(np.float32)
     cloud = brain.render(act)                                            # [h,w,3]
     img = Image.new("RGB", (W, H), BG); d = ImageDraw.Draw(img)
@@ -109,8 +109,13 @@ def frame(mb, brain, kc_node_of, st, phase, cap, active_code, mbonA, mbonB, choi
 def render(a) -> None:
     from flybrain.model.core import load_subgraph
     sub = load_subgraph(a.subgraph); is_cl = np.asarray(sub["is_clamped"], bool)
-    mb = MushroomBody(a.subgraph, a.neurons, sparsity=0.05, punish=("PPL101",), reward=("PAM",), binary=True)
+    # the SAME circuit the write-up uses (full-connectome wiring cache); the subgraph is only for soma positions
+    wiring = a.wiring if (a.wiring and a.wiring.exists()) else None
+    mb = MushroomBody(a.subgraph, a.neurons, sparsity=0.05, punish=("PPL101",), reward=("PAM",), binary=True,
+                      wiring=wiring, modality="olfactory")
     mb._n_nodes = len(sub["bodyId"])
+    pos = {int(b): i for i, b in enumerate(np.asarray(sub["bodyId"]))}
+    kc_node_of = np.array([pos.get(int(b), -1) for b in mb.kc_body]) if mb.kc_body is not None else np.asarray(mb.kc)
     val, _ = build_valence(mb, a.neurons)
     nodes, xyz = soma_positions(sub, a.annotations)
     brain = BrainPanel(nodes, xyz, is_cl, CLOUD[2] - CLOUD[0], CLOUD[3] - CLOUD[1])
@@ -149,7 +154,6 @@ def render(a) -> None:
     hold(2.0, active_code=None, mbonA=S["a1"], mbonB=S["b1"], choice=S["preferC1"], choice_label=PC, dopamine=False, dop_text="", pairing_txt="",
          phase="7. one circuit, several memories", cap=["specific, in the right compartment,", "and it changes what the fly does."])
 
-    kc_node_of = None
     if a.png_dir:
         Path(a.png_dir).mkdir(parents=True, exist_ok=True)
         for fi in a.frames:
@@ -169,6 +173,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--subgraph", type=Path, default=OUT_DIR / "graph" / "subgraph_v5.npz")
     ap.add_argument("--neurons", type=Path, default=OUT_DIR / "graph" / "neurons.parquet")
+    ap.add_argument("--wiring", type=Path, default=OUT_DIR / "mb" / "mb_wiring.npz", help="full-connectome MB cache (mb_build.py)")
     ap.add_argument("--annotations", type=Path, default=None, help="MaleCNS body-annotations feather (for soma positions)")
     ap.add_argument("--beta", type=float, default=11.0)
     ap.add_argument("--seed", type=int, default=0)

@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import time
 from pathlib import Path
 
@@ -113,6 +114,9 @@ class MushroomBody:
         self.channel_names = sorted(ch); self.channel = ch
         self._Wpk = A[kc][:, pn].tocsr(); self._Wkm = A[mbon][:, kc].tocoo()
         self._dan_dense = np.asarray(A[mbon][:, dan].todense())
+        self._mbon_in_total = np.asarray(A[mbon].sum(axis=1)).ravel()   # total input per MBON within the subgraph
+        self.input_totals_source = "Doom subgraph (weight-thresholded)"
+        self.kc_body = body[kc]
 
     def _load_from_wiring(self, wiring, modality):
         z = np.load(wiring, allow_pickle=False)
@@ -126,6 +130,20 @@ class MushroomBody:
         for j, name in enumerate(labels):
             ch.setdefault(name, []).append(j)
         self.channel_names = sorted(ch); self.channel = ch
+        self._mbon_in_total = z["mbon_in_total"] if "mbon_in_total" in z.files else None   # whole-connectome input per MBON
+        self.input_totals_source = "full connectome (mb_build cache)"
+        self.kc_body = z["kc_body"] if "kc_body" in z.files else None
+        self.wiring_build = {k: str(z[k]) for k in ("build_time", "build_source_sha") if k in z.files}
+
+    def mbon_input_frac_from_kc(self, type_name: str = "MBON11") -> float | None:
+        """Share of the summed synaptic input onto the MBONs of `type_name` that arrives from Kenyon cells
+        (unshuffled wiring); the denominator is every input the source table records for those cells."""
+        if self._mbon_in_total is None:
+            return None
+        mask = np.array([tp == type_name for tp in self.mbon_type])
+        kc_in = np.asarray(self._Wkm.tocsr().sum(axis=1)).ravel()
+        tot = float(self._mbon_in_total[mask].sum())
+        return round(float(kc_in[mask].sum()) / tot, 4) if tot > 0 else None
 
     def _dan_template(self, prefixes) -> torch.Tensor:
         """Per-MBON reinforcement strength (0..1) from DAN -> MBON synapse counts of the DAN types matching
@@ -237,6 +255,18 @@ def drop(before: torch.Tensor, after: torch.Tensor, mask: torch.Tensor) -> float
     return float(1 - after[mask].sum() / sb) if sb > 0 else float("nan")
 
 
+def json_safe(o):
+    """Replace non-finite floats with None so every output is strict JSON (a masked compartment with no drive
+    gives a nan drop, e.g. the dopamine-map shuffle on the visual pathway)."""
+    if isinstance(o, float):
+        return o if math.isfinite(o) else None
+    if isinstance(o, dict):
+        return {k: json_safe(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [json_safe(v) for v in o]
+    return o
+
+
 def per_type(before: torch.Tensor, after: torch.Tensor, mb: MushroomBody, top: int = 8) -> dict:
     """Drop per MBON type plus each type's share of the total lost drive."""
     lost = (before - after); total = float(lost.sum())
@@ -261,11 +291,18 @@ def run(a) -> dict:
     off = C[~np.eye(len(odours), dtype=bool)]
     m11 = mb.type_mask("MBON11")
     comp, comp_r = mb.compartment_mask("punish"), mb.compartment_mask("reward")
+    calib_note = None
     if a.lr == "auto":                                                       # one pairing = target drop in the punished compartment (MBON11 for real wiring)
-        mb.calibrate_lr(codes[0], comp, a.target_drop, "punish", a.strength)
+        try:
+            mb.calibrate_lr(codes[0], comp, a.target_drop, "punish", a.strength)
+        except ValueError as e:                                              # e.g. a shuffled dopamine map sends punishment to a compartment this code never drives
+            calib_note = f"calibration impossible, lr left at {lr0}: {e}"
     P = a.pairings
-    res = {"circuit": {"modality": a.modality, "n_input": mb.n_input, "n_channels": len(mb.glom_names), "n_KC": mb.n_kc, "n_MBON": mb.n_mbon,
+    res = {"circuit": {"modality": a.modality, "n_input": mb.n_input, "n_channels": len(mb.glom_names), "n_KC": mb.n_kc,
+                       "n_drivable_KC": mb.n_drivable_kc, "kwta_k": max(1, round(a.sparsity * mb.n_drivable_kc)), "n_MBON": mb.n_mbon,
                        "n_plastic_KC_MBON_edges": mb.n_edges, "n_punish_DAN": mb.n_punish_dan, "n_reward_DAN": mb.n_reward_dan,
+                       "MBON11_input_frac_from_KC": mb.mbon_input_frac_from_kc("MBON11"), "input_totals_source": mb.input_totals_source,
+                       "wiring_build": getattr(mb, "wiring_build", None),
                        "punish_compartment_types": sorted({mb.mbon_type[i] for i in np.flatnonzero(comp.numpy())}),
                        "reward_compartment_types": sorted({mb.mbon_type[i] for i in np.flatnonzero(comp_r.numpy())}),
                        "delta_punish_MBON11": round(float(mb.delta_punish[m11].mean()), 4),
@@ -273,7 +310,8 @@ def run(a) -> dict:
            "kc_code": {"sparsity": a.sparsity, "binary": a.binary_code,
                        "active_frac": [round(float((c > 0).float().mean()), 4) for c in codes[:4]],
                        "cross_odour_cos_mean": round(float(off.mean()), 4), "cross_odour_cos_max": round(float(off.max()), 4)},
-           "rule": {"lr": round(mb.lr, 4), "lr_calibrated": a.lr == "auto", "target_drop_in_punish_compartment_p1": a.target_drop if a.lr == "auto" else None,
+           "rule": {"lr": round(mb.lr, 4), "lr_calibrated": a.lr == "auto" and calib_note is None, "lr_calibration_note": calib_note,
+                    "target_drop_in_punish_compartment_p1": a.target_drop if a.lr == "auto" else None,
                     "lr_capped_at_stability_limit": bool(getattr(mb, "lr_capped", False)),
                     "recover_rate": a.recover_rate, "pairings": P, "strength": a.strength,
                     "note": "paired drop at p pairings = (S2/S1) * (1 - (1 - lr*delta)^p) by the rule; with lr calibrated it is "
@@ -296,8 +334,9 @@ def run(a) -> dict:
                     "unpaired_MBON11_mean": round(float(np.mean([drop(before[i], after[i], m11) for i in range(1, len(codes))])), 4),
                     "unpaired_closed_form": round(float(np.mean([mb.analytic_drop(codes[0], codes[i], m11, p, "punish", a.strength) for i in range(1, len(codes))])), 4)}
         if p == P:
-            one = after
+            one = after; W_at_P = mb.W.clone()                                # the weights after exactly P pairings
     res["drop_vs_pairings_MBON11"] = curve
+    mb.W = W_at_P            # everything below (W_stats, generalisation) reads the P-pairing memory, not the curve's saturated end
     unp = [drop(before[i], one[i], m11) for i in range(1, len(codes))]
     ov = [mb.overlap(codes[0], codes[i], m11) for i in range(1, len(codes))]
     res["one_memory"] = {"pairings": P,
@@ -310,7 +349,7 @@ def run(a) -> dict:
                          "share_of_depression_in_MBON11": round(float((before[0] - one[0])[m11].sum() / (before[0] - one[0]).sum()), 4),
                          "W_stats": {"min": round(float(mb.W.min()), 4), "mean": round(float(mb.W.mean()), 4), "frac_depressed": round(float((mb.W < 0.99).float().mean()), 4)}}
 
-    # --- generalisation: odours sharing s of A's glomeruli, after the same training
+    # --- generalisation: odours sharing s of A's glomeruli, read against the same P-pairing memory (W_at_P above)
     gen = {}
     a_set = list(odours[0]); pool = [g for g in range(len(mb.glom_names)) if g not in a_set]
     for s in sorted({a.glom_per_odour - 1, a.glom_per_odour - 2, a.glom_per_odour // 2, 1, 0}, reverse=True):
@@ -374,7 +413,7 @@ def run(a) -> dict:
     return res
 
 
-def main(argv=None):
+def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser()
     ap.add_argument("--subgraph", type=Path, default=OUT_DIR / "graph" / "subgraph_v5.npz")
     ap.add_argument("--neurons", type=Path, default=OUT_DIR / "graph" / "neurons.parquet")
@@ -390,11 +429,16 @@ def main(argv=None):
     ap.add_argument("--shuffle", default=None, choices=[None, "pn_kc", "kc_mbon", "dan_mbon"])
     ap.add_argument("--seed", type=int, default=0); ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--binary-code", action="store_true", help="KC fires or not (spike-like), instead of graded rates")
-    a = ap.parse_args(argv)
-    res = run(a)
+    return ap
+
+
+def main(argv=None):
+    a = build_parser().parse_args(argv)
+    res = json_safe(run(a))
+    text = json.dumps(res, indent=1, allow_nan=False)                        # fail loudly if a nan ever leaks again
     if a.out:
-        a.out.parent.mkdir(parents=True, exist_ok=True); a.out.write_text(json.dumps(res, indent=1))
-    print(json.dumps(res, indent=1))
+        a.out.parent.mkdir(parents=True, exist_ok=True); a.out.write_text(text)
+    print(text)
 
 
 if __name__ == "__main__":

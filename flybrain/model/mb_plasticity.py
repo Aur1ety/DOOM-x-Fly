@@ -18,7 +18,9 @@ memory dynamics in the mushroom body"), verified against that paper:
 The effective synapse fed to the core is base_value * W (via ConnectomeCore.set_edge_gain), so W = 1 is the
 untouched frozen wiring. Ground-truth targets we score this against (Hige et al. 2015, Neuron): a paired
 stimulus's MBON response drops ~80 % (spikes) / ~90 % (charge); the unpaired stimulus is unchanged; forward
-the change persists tens of minutes. Dopamine with silent KCs changes nothing by the rule's algebra.
+the change persists tens of minutes. Dopamine with silent KCs does NOT leave the weights alone: by the rule's
+(W - w_rest) term it relaxes any depressed synapse back toward w_rest (the smoke test below checks exactly this),
+which is why a second memory in the same compartment erodes the first (docs/RESULTS.md 7.4).
 
     python -m flybrain.model.mb_plasticity --subgraph $FLYBRAIN_OUT/graph/subgraph_v5.npz --smoke
 """

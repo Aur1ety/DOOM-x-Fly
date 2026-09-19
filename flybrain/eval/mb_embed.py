@@ -92,12 +92,20 @@ def run(a) -> dict:
 
     def measure(code):
         r = present_with_kc(core, kc_nodes, code * a.kc_rate, a.decisions, device)
-        return mbon_of(r).cpu(), r.index_select(0, dn_nodes).cpu()
+        return mbon_of(r).cpu(), r.index_select(0, dn_nodes).cpu(), r.cpu()
+
+    # wiring fact used by the write-up: share of MBON11's input (within this subgraph) that comes from Kenyon cells
+    from scipy import sparse as sp
+    A = sp.csr_matrix((np.abs(np.asarray(sub["weight"], np.float64)), np.asarray(sub["indices_pre"], np.int64),
+                       np.asarray(sub["indptr_post"], np.int64)), shape=(core.n_nodes, core.n_nodes))     # [post, pre]
+    m11_nodes = np.asarray(ff.mbon)[m11_local]
+    tot_in = float(A[m11_nodes].sum()); kc_in = float(A[m11_nodes][:, np.asarray(ff.kc)].sum())
+    m11_kc_frac = round(kc_in / tot_in, 4) if tot_in > 0 else None
 
     # baseline (untrained core)
     plas.reset()
-    base_mbon, base_dn = zip(*[measure(c) for c in codes])
-    base_mbon = torch.stack(base_mbon); base_dn = torch.stack(base_dn)
+    base_mbon, base_dn, base_full = zip(*[measure(c) for c in codes])
+    base_mbon = torch.stack(base_mbon); base_dn = torch.stack(base_dn); base_full = torch.stack(base_full)
 
     # calibrate lr so ONE pairing gives the target MBON11 drop inside the recurrent brain (bisection on lr)
     full0 = code_rate(codes[0])
@@ -105,7 +113,7 @@ def run(a) -> dict:
     def paired_drop_at_lr(lr):
         plas.lr = lr; plas.reset()
         plas.reinforce(full0, "punish", a.strength)
-        m, _ = measure(codes[0])
+        m, _, _ = measure(codes[0])
         b = float(base_mbon[0][m11_local].sum())
         return (1 - float(m[m11_local].sum()) / b) if b > 0 else 0.0
 
@@ -130,24 +138,26 @@ def run(a) -> dict:
     plas.lr = calib_lr; plas.reset()
     for _ in range(a.pairings):
         plas.reinforce(code_rate(codes[0]), "punish", a.strength)
-    aft_mbon, aft_dn = zip(*[measure(c) for c in codes])
-    aft_mbon = torch.stack(aft_mbon); aft_dn = torch.stack(aft_dn)
+    aft_mbon, aft_dn, aft_full = zip(*[measure(c) for c in codes])
+    aft_mbon = torch.stack(aft_mbon); aft_dn = torch.stack(aft_dn); aft_full = torch.stack(aft_full)
 
     dn_types = [str(types[i]) for i in dn_local]
 
     def rel(b, a_):
         bb = float(b.abs().sum()); return round(float((a_ - b).abs().sum() / bb), 4) if bb > 0 else None
 
-    def dn_detail(before, after):
+    def dn_detail(before, after, before_full, after_full):
         d = (after - before).abs()
         named = {n: round(float(d[[i for i, t in enumerate(dn_types) if t == n]].sum()), 4) for n in ("DNa02", "DNa03") if n in dn_types}
-        return {"rel_change_whole_brain": rel(before, after), "max_abs_rate_change": round(float(d.max()), 4),
+        return {"rel_change_DN_population": rel(before, after),                    # L1 change pooled over the DNs only
+                "rel_change_whole_brain": rel(before_full, after_full),            # the same ratio over every node of the core
+                "max_abs_rate_change": round(float(d.max()), 4),
                 "n_DN_changed_gt_1pct_of_max": int((d > 0.01 * float(after.abs().max() + 1e-9)).sum()), "named_DN_abs_change": named}
 
     res = {"embedding": "feedforward KC code injected into the full recurrent core; learned synapses on the core's own KC->MBON edges",
            "circuit": {"n_nodes": int(core.n_nodes), "n_edges": int(core.n_edges), "n_KC": len(kc_nodes),
                        "n_MBON": len(mbon_type), "n_plastic_KC_MBON_edges": plas.n_plastic, "n_DN": len(dn_local),
-                       "MBON11_cells": len(m11_local), "subgraph": str(a.subgraph)},
+                       "MBON11_cells": len(m11_local), "MBON11_input_frac_from_KC_subgraph": m11_kc_frac, "subgraph": str(a.subgraph)},
            "rule": {"lr": round(calib_lr, 4), "lr_calibrated_ok": calibrated_ok, "lr_capped_at_ceiling": lr_capped,
                     "target_drop": a.target_drop if a.lr_auto else None, "pairings": a.pairings,
                     "note": "paired_A_MBON11 magnitude is set by lr (calibrated), not by the wiring; the wiring-derived claims are "
@@ -162,9 +172,10 @@ def run(a) -> dict:
                                           "note": "calibrated/tuning-dependent, not wiring evidence"},
            "dn_readout_through_recurrent_brain": {
                "n_DN_driven": int((base_dn[0] != 0).sum()),
-               "trained_A": dn_detail(base_dn[0], aft_dn[0]),
-               "untouched_mean_rel_change": round(float(np.mean([rel(base_dn[i], aft_dn[i]) for i in range(1, len(codes))])), 4),
-               "note": "even the max single-DN rate change is the honest test of whether the memory reaches steering; whole-brain ratio dilutes it"},
+               "trained_A": dn_detail(base_dn[0], aft_dn[0], base_full[0], aft_full[0]),
+               "untouched_mean_rel_change_DN_population": round(float(np.mean([rel(base_dn[i], aft_dn[i]) for i in range(1, len(codes))])), 4),
+               "note": "the max single-DN rate change is the honest test of whether the memory reaches steering; the L1 ratio "
+                       "pooled over the DN population (and even more the whole-brain one) dilutes it"},
            "elapsed_s": round(time.time() - t0, 1)}
     up = res["WIRING_DERIVED_specificity"]["unpaired_MBON11_mean"]; pd_ = res["calibrated_paired_A_MBON11"]["value"]
     res["WIRING_DERIVED_specificity"]["paired_over_unpaired_ratio"] = round(pd_ / up, 2) if up else None

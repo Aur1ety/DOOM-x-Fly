@@ -51,13 +51,14 @@ def run(a) -> dict:
     # partial cue: keep a fraction of A's glomeruli (average over which ones are kept)
     by_glom = {}
     for keep in range(G, 0, -1):
-        ds, kcs = [], []
+        ds, kcs, ovs = [], [], []
         for _ in range(a.reps):
             sub = list(rng.choice(A, size=keep, replace=False))
             code = mb.kc_code(mb.odour(sub))
-            ds.append(drop(code)); kcs.append(float((code > 0).float().mean()))
+            ds.append(drop(code)); kcs.append(float((code > 0).float().mean())); ovs.append(mb.overlap(full, code, m11))
         by_glom[f"{keep}/{G}"] = {"cue_fraction": round(keep / G, 3), "recall_MBON11": round(float(np.mean(ds)), 4),
                                   "recall_fraction": round(float(np.mean(ds)) / full_recall, 3) if full_recall else None,
+                                  "overlap_at_MBON11": round(float(np.mean(ovs)), 4),   # == recall_fraction by the rule's algebra (see verdict)
                                   "kc_active_frac": round(float(np.mean(kcs)), 4)}
 
     # is recall graded (linear in cue) or completing (stays high)? fit recall_fraction vs cue_fraction
@@ -67,8 +68,13 @@ def run(a) -> dict:
            "partial_cue_by_glomeruli": by_glom, "recall_vs_cue_slope": slope,
            "verdict": (f"Partial SMELL (fewer glomeruli) gives graded recall (slope ~{slope:.2f}): a smaller odour "
                        "drives a different, partly-overlapping Kenyon pattern, so recall tracks the fraction of the "
-                       "trained code the cue re-activates. The feedforward circuit does not pattern-complete a "
-                       "degraded input. (Silencing the odour's own Kenyon cells is NOT reported: under a binary code "
+                       "trained code the cue re-activates. What this measures, exactly: with a binary code and one "
+                       "pairing, recall_fraction EQUALS the share of the cue's MBON11 drive that passes through "
+                       "synapses of the trained odour's Kenyon cells (overlap_at_MBON11, reported alongside), by the "
+                       "rule's algebra. So the curve is the connectome's partial-cue overlap, a wiring measurement, "
+                       "and completion (recall above that overlap) is excluded for this feedforward circuit by "
+                       "construction; the result is the shape of the graded curve, not a test that could have shown "
+                       "completion. (Silencing the odour's own Kenyon cells is NOT reported: under a binary code "
                        "with uniform per-compartment dopamine every trained synapse carries the same depression, so "
                        "a self-normalised recall would be constant for any subset by construction and tests nothing.)"),
            "elapsed_s": round(time.time() - t0, 1)}

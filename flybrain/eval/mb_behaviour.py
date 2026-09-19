@@ -9,8 +9,9 @@ body, for either sense (olfactory or visual), built on the full-connectome wirin
    1/2[P(A)-P(B) | B punished]. Ground truth: wild-type single-cycle PI 0.44-0.53.
 
 2. Wiring readout: how much the learned change reaches the descending neurons through the connectome's own
-   MBON -> DN direct and MBON -> one interneuron -> DN routes (both precomputed in the cache). Reported for
-   the trained stimulus overall and at the steering DNs DNa02 / DNa03.
+   MBON -> DN direct and MBON -> one interneuron -> DN routes (both precomputed in the cache; a relay is an
+   interneuron, never another MBON or a DN). Reported for the trained stimulus overall and at the steering DNs
+   DNa02 / DNa03. The two routes are reported separately, never summed.
 
     python -m flybrain.eval.mb_behaviour --wiring $FLYBRAIN_OUT/mb/mb_wiring.npz --modality olfactory --binary-code
 """
@@ -25,7 +26,7 @@ import numpy as np
 import torch
 
 from flybrain import OUT_DIR
-from flybrain.eval.mb_olfactory import MushroomBody
+from flybrain.eval.mb_olfactory import MushroomBody, json_safe
 
 APPROACH_NT = {"gaba", "acetylcholine"}
 AVOID_NT = {"glutamate"}
@@ -89,24 +90,71 @@ def run(a) -> dict:
 
     res = {"modality": a.modality, "mbon_valence_counts": counts, "n_DN": n_dn, "binary_code": a.binary_code,
            "pairings": a.pairings, "shuffle": a.shuffle,
+           "valence_table_source": "connectome consensus transmitter per MBON type (unanimous for all 37 types in MaleCNS); "
+                                   "GABA / acetylcholine -> approach, glutamate -> avoid (Aso et al. 2014)",
+           # the map this run trained under (changes under --shuffle dan_mbon): where punishment and reward land
+           "punish_compartment_types": sorted({mb.mbon_type[i] for i in np.flatnonzero(mb.compartment_mask("punish").numpy())}),
+           "reward_compartment_types": sorted({mb.mbon_type[i] for i in np.flatnonzero(mb.compartment_mask("reward").numpy())}),
+           "wiring_build": getattr(mb, "wiring_build", None),
            "rule": {"lr": round(mb.lr, 4), "lr_calibrated": a.lr == "auto", "recover_rate": a.recover_rate},
            "baseline_scores": [round(float(x), 4) for x in score(base)[:4]]}
 
     # --- readout 1: T-maze PI, reciprocal design, swept over the motor gain beta
-    pi = {}
-    for beta in a.betas:
-        train(0, "punish", a.pairings); sA = score(responses())
-        half1 = p_choose(sA[1], sA[0], beta) - p_choose(sA[0], sA[1], beta)
-        train(1, "punish", a.pairings); sB = score(responses())
-        half2 = p_choose(sB[0], sB[1], beta) - p_choose(sB[1], sB[0], beta)
-        s0 = score(base)
-        # PI_untrained under the reciprocal design is identically 0 (tautology); report instead the innate A-vs-B
-        # bias of the untouched circuit (non-reciprocal), which CAN be nonzero if the odours differ at baseline.
-        pi[beta] = {"PI_trained": round(0.5 * (half1 + half2), 4),
-                    "innate_bias_A_vs_B": round(p_choose(s0[0], s0[1], beta) - 0.5, 4),
-                    "P_choose_punished_A_vs_B": round(p_choose(sA[0], sA[1], beta), 4)}
+    def tmaze(cs):
+        """Reciprocal T-maze on the pair (cs[0], cs[1]), normalised over the odour set cs. Per beta: the index, the
+        untrained circuit's innate A-vs-B bias (the reciprocal UNTRAINED index is identically 0 by construction, so
+        the bias is the informative baseline), and P(choose the punished odour). Also the beta-free learned shift
+        of each punished odour's approach score, the quantity that is comparable across senses and odour pairs."""
+        mb.reset()                                                              # the baseline must be the untrained circuit
+        R0 = torch.stack([mb.mbon_response(c) for c in cs]); nrm = float(R0.abs().sum(1).mean())
+
+        def sc(R):
+            return (R * val).sum(1) / nrm
+
+        def after(idx):
+            mb.reset()
+            for _ in range(a.pairings):
+                mb.reinforce(cs[idx], "punish", a.strength)
+            return sc(torch.stack([mb.mbon_response(c) for c in cs]))
+        s0, sA, sB = sc(R0), after(0), after(1)
+        by_beta = {}
+        for beta in a.betas:
+            half1 = p_choose(sA[1], sA[0], beta) - p_choose(sA[0], sA[1], beta)
+            half2 = p_choose(sB[0], sB[1], beta) - p_choose(sB[1], sB[0], beta)
+            by_beta[beta] = {"PI_trained": round(0.5 * (half1 + half2), 4),
+                             "innate_bias_A_vs_B": round(p_choose(s0[0], s0[1], beta) - 0.5, 4),
+                             "P_choose_punished_A_vs_B": round(p_choose(sA[0], sA[1], beta), 4)}
+        shift = {"A": round(float(s0[0] - sA[0]), 4), "B": round(float(s0[1] - sB[1]), 4)}
+        return by_beta, shift, s0
+
+    pi, shift0, _ = tmaze(codes)
     res["tmaze_PI_by_beta"] = pi
+    res["learned_score_shift_example_pair"] = shift0
     res["ground_truth_PI"] = "wild type, one training cycle: 0.44 (automated) - 0.53 (manual); Tully & Quinn design"
+
+    # --- the same T-maze over many odour pairs. The reciprocal index of ONE pair is capped by that pair's innate
+    # A-vs-B bias (after B is punished a strongly preferred B can still win), so a single pair is not a circuit
+    # property. Fresh draws per seed; the calibrated lr is odour-independent for a binary code (lr = target/delta).
+    per = []
+    for s in range(a.seed, a.seed + a.pi_seeds):
+        r = np.random.default_rng(s)
+        st = [r.choice(len(mb.glom_names), size=a.glom_per_odour, replace=False) for _ in range(a.odours)]
+        per.append(tmaze([mb.kc_code(mb.odour(o)) for o in st]))
+
+    def ms(xs):
+        v = np.asarray(xs, float); return [round(float(v.mean()), 4), round(float(v.std()), 4)]
+    over = {}
+    for beta in a.betas:
+        pis = [p[0][beta]["PI_trained"] for p in per]; bias = [abs(p[0][beta]["innate_bias_A_vs_B"]) for p in per]
+        over[beta] = {"PI_mean_sd": ms(pis), "PI_min_max": [round(min(pis), 4), round(max(pis), 4)],
+                      "abs_innate_bias_mean_sd": ms(bias),
+                      "corr_PI_vs_abs_innate_bias": round(float(np.corrcoef(pis, bias)[0, 1]), 3) if len(per) > 2 and np.std(bias) > 0 and np.std(pis) > 0 else None}
+    shifts = [p[1]["A"] for p in per] + [p[1]["B"] for p in per]
+    res["tmaze_PI_over_seeds"] = {"n_seeds": a.pi_seeds, "by_beta": over, "learned_score_shift_mean_sd": ms(shifts),
+                                  "note": "PI_mean_sd is the reciprocal index over independently drawn odour pairs; a negative "
+                                          "corr_PI_vs_abs_innate_bias means pairs the untrained circuit already prefers cap the "
+                                          "index. learned_score_shift is the drop in the punished odour's approach score (beta-free), "
+                                          "the size of what the memory writes, comparable across senses."}
 
     # --- multiple memories change behaviour: A punished, C rewarded; choices among A, C, D(untouched)
     mb.reset()
@@ -154,12 +202,13 @@ def main(argv=None):
     ap.add_argument("--shuffle", default=None, choices=[None, "pn_kc", "kc_mbon", "dan_mbon"])
     ap.add_argument("--punish", nargs="+", default=["PPL101"]); ap.add_argument("--reward", nargs="+", default=["PAM"])
     ap.add_argument("--betas", type=float, nargs="+", default=[1, 2, 4, 8, 16, 32])
+    ap.add_argument("--pi-seeds", type=int, default=10, help="independent odour-pair draws for the T-maze spread")
     ap.add_argument("--seed", type=int, default=0); ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
-    res = run(a)
+    res = json_safe(run(a)); text = json.dumps(res, indent=1, allow_nan=False)
     if a.out:
-        a.out.parent.mkdir(parents=True, exist_ok=True); a.out.write_text(json.dumps(res, indent=1))
-    print(json.dumps(res, indent=1))
+        a.out.parent.mkdir(parents=True, exist_ok=True); a.out.write_text(text)
+    print(text)
 
 
 if __name__ == "__main__":

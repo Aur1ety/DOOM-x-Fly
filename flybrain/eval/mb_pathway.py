@@ -6,8 +6,10 @@ cell) and DNa03. The connectome names the specific interneurons on that path. Th
 a falsifiable prediction: if the path is carried by a few specific interneuron types, silencing those types
 should selectively impair LEARNED odour avoidance while leaving naive behaviour intact, which a wet lab can test.
 
-Path strength for an interneuron i = (summed synapses source-MBON -> i) * (summed synapses i -> steering DN),
-i.e. the two-hop capacity through i. Reported per interneuron TYPE (the unit a lab can target with a driver line).
+A bridge is an INTERNEURON (not itself an MBON or a descending neuron). For each bridge i the memory-modulated
+throughput is (synapses i -> steering DN) * (share of i's total input that comes from the source MBON): the DN
+drive that the memory can actually change, not raw capacity. Reported per interneuron TYPE (the unit a lab can
+target with a driver line), with the most source-specific bridges listed separately as the honest targets.
 
   python -m flybrain.eval.mb_pathway --data $FLYBRAIN_DATA/malecns_v1 --out $FLYBRAIN_OUT/mb/pathway.json
 """
@@ -43,7 +45,8 @@ def run(a) -> dict:
     direct = mo[mo.body_post.isin(set(steer))].weight.sum()
 
     inter = np.array(sorted(set(mo.body_post) & set(di.body_pre)))           # cells the MBON drives that also drive the steering DN
-    inter = inter[~np.isin(inter, np.concatenate([src, steer]))]            # exclude the endpoints themselves
+    all_mbon = ann.bodyId[ann["type"].str.startswith("MBON")].to_numpy()
+    inter = inter[~np.isin(inter, np.concatenate([src, steer, all_mbon, all_dn]))]   # a bridge is an interneuron: no MBON, no DN (same rule as mb_build)
     w1 = mo.groupby("body_post").weight.sum()                                # MBON -> i
     w2 = di.groupby("body_pre").weight.sum()                                 # i -> DN
     tin = w[w.body_post.isin(set(inter))].groupby("body_post").weight.sum()  # TOTAL input onto i (for specificity)
@@ -73,20 +76,26 @@ def run(a) -> dict:
     specific = [{"bodyId": b, "type": tp, "mbon_input_fraction": round(spec, 4), "mbon_to_i": round(s1, 1), "i_to_DN": round(s2, 1)}
                 for b, tp, s1, s2, tot, spec, thru in by_spec[:a.top]]
     best_type = by_spec[0][1] if by_spec else "?"; best_spec = round(by_spec[0][5], 4) if by_spec else None
-    frac = round(via_mb / steer_total_in * 100, 3) if steer_total_in else None
+    frac = (via_mb / steer_total_in * 100) if steer_total_in else None
+    frac_s = f"{frac:.2e}" if frac is not None else "n/a"                       # do not let a tiny share round to '0.0'
+    lead = top_types[0] if top_types else None
 
     res = {"source_MBON": a.source_type, "n_source_cells": len(src),
            "steering_DNs": a.steer_types, "n_steer_cells": len(steer),
            "direct_MBON_to_steerDN_synapses": round(float(direct), 1),
            "n_bridging_interneurons": len(inter), "n_bridging_types": len(bytype),
-           "memory_throughput_total": round(thru_total, 2),
-           "steerDN_input_pct_memory_modulated": frac,
+           "memory_throughput_total": round(thru_total, 4), "memory_throughput_via_bridges": round(via_mb, 4),
+           "steerDN_total_input_synapses": round(steer_total_in, 1),
+           "steerDN_input_pct_memory_modulated": float(f"{frac:.3g}") if frac is not None else None,
            "top_bridging_types_by_throughput": top_types, "most_specific_bridges": specific,
            "prediction": (f"The connectome provides NO memory-specific route from {a.source_type} to the steering DNs "
-                          f"{a.steer_types}: the direct path is {round(float(direct),1)} synapses, and even the strongest "
-                          f"two-hop bridge ({best_type}) receives only {best_spec} (~{round((best_spec or 0)*100,2)}%) of "
-                          f"its input from {a.source_type}, so the total memory-modulated throughput is {frac}% of the "
-                          f"steering DNs' input. This ANATOMICALLY confirms the model's section-9 finding that the memory "
+                          f"{a.steer_types}: the direct path is {round(float(direct),1)} synapses; the strongest bridge by "
+                          f"memory throughput is {lead['type'] if lead else '?'} ({lead['memory_throughput'] if lead else '?'} "
+                          f"synapse-equivalents, {a.source_type} share of its input {lead['mbon_input_fraction_max'] if lead else '?'}); "
+                          f"and even the most {a.source_type}-specific bridge ({best_type}) receives only {best_spec} "
+                          f"(~{round((best_spec or 0)*100,2)}%) of its input from {a.source_type}, so the total memory-modulated "
+                          f"throughput is {frac_s}% of the steering DNs' {round(steer_total_in)} input synapses. This "
+                          f"ANATOMICALLY confirms the model's section-9 finding that the memory "
                           f"does not reach the descending neurons. PREDICTION (testable): learned odour avoidance is NOT "
                           f"routed through a single dedicated interneuron from this compartment, so silencing the top "
                           f"candidates ({', '.join(t['type'] for t in top_types[:3])}) should NOT selectively abolish "
