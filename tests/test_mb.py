@@ -232,6 +232,73 @@ def test_seeds_aggregate_spans_different_draws(wiring):
     assert s["circuit"]["n_drivable_KC"] == N_DRIVABLE
 
 
+def mag_args(wiring, **over):
+    a = argparse.Namespace(subgraph=None, neurons=None, wiring=wiring, target=0.9, odour_dur=1.0, da_width=0.001,
+                           dt=0.001, tau_forget=1e9, da_onset=0.2, tau_elig=0.8, taus=[0.1, 0.4, 0.8, 3.2],
+                           da_freqs=[0.5, 2.0], rate_sweep=True, dose_pulses=[1, 2, 3, 4, 8],
+                           hypothetical_measurements=[0.15, 0.2, 0.3, 0.6], tau_scan=40, eta_max=1e7, seed=0, out=None)
+    for k, v in over.items():
+        setattr(a, k, v)
+    return a
+
+
+def test_magnitude_scores_each_measured_arm_on_its_own_protocol(wiring):
+    """The two Hige arms differ in pulse TIMING as well as count (4 from +0.2 s versus 1 at +0.8 s). Scoring the
+    single-pulse arm at +0.2 s instead inverts which rule fits, so pin that each arm uses its own onset."""
+    from flybrain.eval import mb_magnitude
+    a = mag_args(wiring)
+    assert mb_magnitude.ARMS["single_pulse"]["onset"] == 0.8 and mb_magnitude.ARMS["four_pulse"]["onset"] == 0.2
+    r = mb_magnitude.run(a)
+    t = r["measured_test_pulse_arms"]
+    eta = mb_magnitude.anchor_eta(a.tau_elig, a, a.target)
+    at_own = mb_magnitude.arm_drop(eta, a.tau_elig, mb_magnitude.ARMS["single_pulse"], a)
+    at_anchor = mb_magnitude.arm_drop(eta, a.tau_elig, mb_magnitude.ARMS["four_pulse"], a, onset=a.da_onset, n=1)
+    assert at_own > at_anchor + 0.1                                    # a later pulse rides a charged trace
+    assert abs(t["candidates"]["eligibility_trace"]["ratio"] - at_own / a.target) < 1e-3   # scored at +0.8 s, not +0.2
+    assert abs(mb_magnitude.arm_drop(eta, a.tau_elig, mb_magnitude.ARMS["four_pulse"], a) - a.target) < 2e-3
+    assert "+0.8 s" in t["measured"]["from"] and "+0.2 s" in t["measured"]["from"]
+
+
+def test_magnitude_scores_three_rules_and_admits_it_cannot_separate_them(wiring):
+    from flybrain.eval import mb_magnitude
+    r = mb_magnitude.run(mag_args(wiring))
+    t = r["measured_test_pulse_arms"]; c = t["candidates"]
+    assert set(c) == {"eligibility_trace", "independent_pulses", "block_is_the_unit"}
+    assert c["block_is_the_unit"]["ratio"] == 1.0                       # sections 7-9 have no pulse axis
+    assert abs(c["independent_pulses"]["ratio"] - (1 - 0.1 ** 0.25) / 0.9) < 1e-3
+    assert t["closest_to_measurement"] == "eligibility_trace"
+    assert t["does_it_separate_them"] is False                          # one noisy ratio cannot choose
+    assert all(abs(v["z_vs_measured"]) < 2.0 for v in c.values())       # nothing is excluded
+    assert len(t["caveats_worst_first"]) >= 5
+
+
+def test_magnitude_discriminating_experiment_and_inverse(wiring):
+    """With the timing held fixed the rules DO separate, the sign test needs a trace slower than the pulse
+    interval and pulses that land inside the odour, and the inverse maps a measurement back to a trace constant."""
+    from flybrain.eval import mb_magnitude
+    a = mag_args(wiring)
+    r = mb_magnitude.run(a)
+    d = r["discriminating_experiment_timing_held_fixed"]
+    assert d["one_pulse_trace_rule"] < d["one_pulse_independent"] and d["separation"] > 1.5
+    assert d["by_tau"]["0.8"]["second_pulse_adds_more_than_first"]
+    assert not d["by_tau"]["0.1"]["second_pulse_adds_more_than_first"]
+    rates = d["by_tau"]["0.8"]["second_adds_more_by_pulse_rate_hz"]
+    assert rates["2"] and not rates["0.5"]                             # at 0.5 Hz most pulses fall outside a 1 s odour
+    assert d["sign_test"]["not_unique_to_a_trace"]                     # the test rules OUT independence, not IN a trace
+    inv = r["inverse_implied_trace_constant"]
+    lo, hi = inv["reachable_band"]
+    for m, roots in inv["measured_single_pulse_at_anchor_onset_implies_tau_elig_s"].items():
+        if roots is None:
+            assert not (lo <= float(m) <= hi)
+            continue
+        for tau in roots:                                              # each root must reproduce its measurement
+            eta = mb_magnitude.anchor_eta(tau, a, a.target)
+            got = mb_magnitude.arm_drop(eta, tau, mb_magnitude.ARMS["four_pulse"], a, onset=a.da_onset, n=1)
+            assert abs(got - float(m)) < 5e-3
+    chk = r["closed_form_vs_full_circuit"]                             # the closed form is exact for a binary code
+    assert chk is not None and chk["agrees"] and set(chk["full_circuit"]) == set(mb_magnitude.ARMS)
+
+
 def test_apl_loop_sparsens_with_gain(wiring):
     from flybrain.eval.mb_apl import apl_code
     z = np.load(wiring); mb = mb_of(wiring)
