@@ -83,6 +83,7 @@ python -m flybrain.eval.mb_lesion --wiring $W                                 # 
 python -m flybrain.eval.mb_recall --wiring $W                                 # partial cue: graded recall, no completion (10.3)
 python -m flybrain.eval.mb_pathway                                            # memory-to-steering route in the connectome (10.4)
 python -m flybrain.eval.mb_apl --wiring $W                                    # the Kenyon code from the real APL loop (10.5)
+python -m flybrain.eval.mb_magnitude --wiring $W                              # is the size of the memory a prediction? scored against Hige (10.6)
 python -m flybrain.eval.mb_sparse --device cuda:0 --odours 6 --reps 5 --out $FLYBRAIN_OUT/mb/kcsparse2_none.json   # section 9.1, one run per threshold
 python -m flybrain.eval.mb_sparse --device cuda:0 --odours 6 --reps 5 --kc-vrest -2  --out $FLYBRAIN_OUT/mb/kcsparse2_-2.json
 python -m flybrain.eval.mb_sparse --device cuda:0 --odours 6 --reps 5 --kc-vrest -5  --out $FLYBRAIN_OUT/mb/kcsparse2_-5.json

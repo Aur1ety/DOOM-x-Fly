@@ -502,12 +502,14 @@ integration timescale, not the decision timescale.
 
 ## 10. Experiments on the simulated fly (2026-09-18/19)
 
-Five further things you can do to the section-7 circuit once it exists: teach it in real time, lesion it,
-give it a partial cue, trace where its memory could go, and take away the one hand-set part of its Kenyon
-code. All run on the CPU in seconds on the wiring cache; results in `outputs/mb/online.json`, `lesion.json`,
-`recall.json`, `pathway.json`, `apl.json`. Each output carries its own verdict string and says which of its
-numbers are calibrated, which are closed forms of the rule, and which come from the wiring. These modules
-went through the same adversarial review as sections 7 to 9; the labelling below is what survived it.
+Six further things you can do to the section-7 circuit once it exists: teach it in real time, lesion it, give
+it a partial cue, trace where its memory could go, take away the one hand-set part of its Kenyon code, and ask
+whether the size of the memory is a prediction. All run on the CPU in seconds; the first five need the wiring
+cache and the last uses it only for a cross-check. Results in `outputs/mb/online.json`, `lesion.json`,
+`recall.json`, `pathway.json`, `apl.json`, `magnitude.json`. Each output carries its own verdict string and
+says which of its numbers are calibrated, which are closed forms of the rule, and which come from the wiring.
+These modules went through the same adversarial review as sections 7 to 9; the labelling below is what
+survived it, and where a review overturned a conclusion the correction is stated in place.
 
 ### 10.1 Teaching with a clock (`mb_online.py`)
 
@@ -628,11 +630,92 @@ winners cell by cell. Honest conclusion: the PN->KC wiring gives the odour ident
 many cells fire. This module went through two reviews of its own (a density confound in the comparison and a
 one-sided test were found and removed).
 
-### 10.6 Caveats for this section (worst first)
+### 10.6 Is the size of the memory a prediction? (`mb_magnitude.py`)
+
+The one number set by hand in section 7 is the learning rate, chosen so that one pairing block reproduces Hige's
+90%. That stays a calibration: nobody has measured the size of a single dopamine-driven depression at this
+synapse, so one number has to be set. But Hige's pairing block is not one event, and how the pulses inside it
+combine is a property of the rule rather than of the fit, so it can be scored. Three candidates all reproduce
+0.90 at the four-pulse arm and disagree elsewhere:
+
+| rule | one-pulse / four-pulse ratio | what it says |
+|---|---|---|
+| block is the unit (sections 7 to 9) | 1.00 | one rule application per block; pulse count does not enter |
+| independent pulses | 0.49 | each pulse multiplies the synapse by 1 - 0.44; count matters, timing does not |
+| eligibility trace (10.1) | 0.71 | a pulse acts on the trace of recent Kenyon activity; count and timing both matter |
+
+Hige ran arms that bear on this. The depression of the UNPAIRED odour was 20 +- 6.3% after a single pulse and
+27 +- 7.1% after four, a ratio of 0.74 +- 0.30. That ratio is comparable to ours because under this rule a
+probe odour's drop is exactly its Kenyon-cell overlap with the trained odour times the paired drop, and the
+overlap does not depend on the dopamine schedule, so it cancels.
+
+The two arms differ in two ways, and both have to be reproduced: four pulses from +0.2 s against ONE pulse at
++0.8 s, into a 1 s odour. The delay is not a detail. By 0.8 s the eligibility trace has charged, so a rule in
+which timing matters expects one late pulse to do nearly as much as four early ones, while a rule without
+timing expects it to do much less. Each arm is therefore simulated on its own schedule.
+
+| candidate | ratio | z against the measured 0.74 +- 0.30 |
+|---|---|---|
+| eligibility trace | 0.71 | -0.12 |
+| independent pulses | 0.49 | -0.84 |
+| block is the unit | 1.00 | +0.85 |
+
+The trace rule is closest, and it stays closest across the whole trace-constant sweep (0.57 to 0.82 for tau from
+3.2 s down to 0.2 s). But one ratio of two noisy means separates none of them: all three sit within one
+propagated SEM of the measurement, and the two rules that are wrong are wrong in opposite directions. The
+honest statement is that this measurement is under-powered, not that it picks a winner. What the trace rule
+buys is an explanation rather than a coincidence: it expects a late single pulse to do nearly as much as four
+early ones, which is what was seen, whereas a timing-free rule has to treat that as luck.
+
+Hige's other pulse arm does not help either. A 1 min odour with 120 pulses gave suppression "similar" to four
+pulses, but anchored at 0.90 there is only 0.10 of headroom: every candidate here is above 0.97 by eight pulses
+and at 1.00 by 120, which on the unpaired channel is a move from 0.27 to at most 0.30, inside its own SEM. That
+observation is consistent with all three rules and discriminates nothing.
+
+Correction (2026-09-19): the first version of this section scored the single-pulse arm at +0.2 s rather than
+Hige's +0.8 s, and used a 5 s odour rather than his 1 s. Under a trace rule the delay is the mechanism, so that
+reversed the result: it reported the trace rule as the worst fit (ratio 0.22) and concluded that dopamine
+saturates within a block and that 10.1's pulse axis was wrong. With the protocols matched the trace rule is the
+best fit of the three and no such conclusion follows. The 120-pulse argument was also wrong, for the reason
+given above.
+
+The experiment that WOULD separate the rules holds the timing fixed and varies only the count. At the
+four-pulse arm's own onset the trace rule predicts 0.22 for one pulse against 0.44 for independent pulses and
+0.90 for the block rule, a factor of two between the first two. The magnitude-free version is the curvature:
+with a trace comparable to or slower than the pulse interval the second pulse adds more than the first (true
+for tau of 0.4 s and above here, and at pulse rates of 1 to 5 Hz, but not at 0.5 Hz, where most of the train
+falls outside a 1 s odour). That is a sign test on two increments, so it needs no absolute magnitude and no
+anchor value, and pulse independence can never produce it. It does not prove a trace, though: anything that
+grows within a train, such as dopamine facilitation or receptor sensitisation, would also give a rising
+increment. Read backwards, the same experiment measures the trace constant, which is hand-set here and which
+the literature sweep found unmeasured: a single-pulse depression of 0.15 implies 2.3 s, 0.20 implies 1.0 s,
+0.30 implies 0.46 s, 0.44 implies 0.24 s.
+
+For context, the only direct measurements of this synapse (Yamada, Davidson & Hige 2024, J Physiol, using
+exogenous dopamine and direct Kenyon activation rather than odour and PPL1, so not substitute anchors) give
+54.7 +- 8.5% depression from gamma Kenyon cells and 81.8 +- 3.8% from alpha/beta Kenyon cells onto the same
+MBON, both presynaptic (paired-pulse ratio up about 90%). They bracket the calibrated 0.90 and show the
+magnitude is Kenyon-class dependent, which this model does not represent: its rule is identical for every
+Kenyon cell.
+
+Caveats on the comparison, worst first: the measured numbers are the unpaired (CS-) channel, because the paired
+magnitude for the single-pulse arm exists only in a supplementary plot and is not stated in readable text
+anywhere; the two arms come from different experiment sets and the single-pulse arm's odour pair could not be
+confirmed, while the same paper shows unpaired depression scales with Kenyon-cell overlap (Pearson r = 0.90),
+so odour identity is an unexcluded alternative explanation for 20% against 27%; the n for the single-pulse arm
+is not stated and the four-pulse arm is n = 7; the propagated error on a ratio of two noisy means is a
+first-order approximation and the ratio's distribution is skewed, so the z values are indicative; and these are
+spike counts, not the EPSC charge transfer the 0.90 calibration uses.
+
+### 10.7 Caveats for this section (worst first)
 
 1. 10.1's timing and dose curves are closed forms of an anchored rule; they demonstrate the trace mechanism and
-   contain no connectome information. Only the unpaired odour and the behaviour there depend on the wiring.
+   contain no connectome information. Only the unpaired odour and the behaviour there depend on the wiring. Its
+   pulse-count axis is the part 10.6 scores against data; it survives, but the measurement is under-powered.
 2. 10.2 has two real tests in six rows; three rows are identities kept as floors and one is the intact baseline.
 3. 10.3 cannot show completion by construction; it measures the partial-cue overlap.
 4. 10.4 is anatomy at minconf 0.5: capacity, not proven necessity, and a route below the threshold is invisible.
 5. 10.1 to 10.3 are single odour draws; 10.5 has ten.
+6. 10.6 scores three candidate rules against two published numbers whose caveats are listed there, and the
+   comparison separates none of them. It does not make the calibrated magnitude itself a prediction, and no
+   measurement now in the literature would.
