@@ -60,7 +60,7 @@ Training takes a couple of hours on one A30. `python -m pytest tests/` runs the 
 
 ## Memory: the fly's own mushroom body
 
-A separate thread (write-up in `docs/RESULTS.md`, sections 7 to 9): the fly's own learning circuit, built from the same connectome plus the published dopamine plasticity rule, learns that an odour or a visual object predicts punishment or reward. It reproduces the measured odour-specific depression, holds several memories, and changes a simulated choice; the negatives are reported too. Same data as above; these run in seconds on CPU, except the two that need a GPU.
+A separate thread (write-up in `docs/RESULTS.md`, sections 7 to 10): the fly's own learning circuit, built from the same connectome plus the published dopamine plasticity rule, learns that an odour or a visual object predicts punishment or reward. It reproduces the measured odour-specific depression, holds several memories, and changes a simulated choice; the negatives are reported too. Same data as above; these run in seconds on CPU, except the two that need a GPU (whose recorded outputs predate the last review; rerun pending).
 
 The quickest look is the walkthrough, which teaches an odour and shows the fly's choices change:
 
@@ -69,15 +69,26 @@ python -m flybrain.eval.mb_build           # once: cache the mushroom-body wirin
 python -m flybrain.eval.mb_demo            # teach the fly, watch its choices change (add --modality visual)
 ```
 
-The individual results:
+The individual results (`W=$FLYBRAIN_OUT/mb/mb_wiring.npz`; the control variants add `--sparsity 1.0`, `--seed 1`
+or `--shuffle dan_mbon`):
 
 ```bash
-python -m flybrain.eval.mb_build                                   # cache the mushroom-body wiring from the full connectome
-python -m flybrain.eval.mb_olfactory --binary-code --wiring $FLYBRAIN_OUT/mb/mb_wiring.npz   # smell (section 7)
-python -m flybrain.eval.mb_olfactory --binary-code --wiring $FLYBRAIN_OUT/mb/mb_wiring.npz --modality visual   # vision (section 8)
-python -m flybrain.eval.mb_behaviour --wiring $FLYBRAIN_OUT/mb/mb_wiring.npz --modality olfactory --binary-code # does it change choice
-python -m flybrain.eval.mb_sparse --device cuda:0                  # why the recurrent model can't hold the code (section 9.1)
-python -m flybrain.eval.mb_embed --device cuda:0 --lr-auto         # embedding the memory in the recurrent brain (section 9.2)
+python -m flybrain.eval.mb_build                                              # cache the mushroom-body wiring from the full connectome
+python -m flybrain.eval.mb_olfactory --binary-code --wiring $W                # smell (section 7)
+python -m flybrain.eval.mb_olfactory --binary-code --wiring $W --modality visual   # vision (section 8)
+python -m flybrain.eval.mb_behaviour --wiring $W --modality olfactory --binary-code  # does it change choice (7.5, 8.3; ten odour pairs)
+python -m flybrain.eval.mb_seeds --wiring $W --seeds 10                       # the section 7/8 numbers over ten odour draws
+python -m flybrain.eval.mb_online --wiring $W                                 # teaching with a clock: eligibility trace, timing, dose (10.1)
+python -m flybrain.eval.mb_lesion --wiring $W                                 # in-silico lesions next to real-fly results (10.2)
+python -m flybrain.eval.mb_recall --wiring $W                                 # partial cue: graded recall, no completion (10.3)
+python -m flybrain.eval.mb_pathway                                            # memory-to-steering route in the connectome (10.4)
+python -m flybrain.eval.mb_apl --wiring $W                                    # the Kenyon code from the real APL loop (10.5)
+python -m flybrain.eval.mb_sparse --device cuda:0 --odours 6 --reps 5 --out $FLYBRAIN_OUT/mb/kcsparse2_none.json   # section 9.1, one run per threshold
+python -m flybrain.eval.mb_sparse --device cuda:0 --odours 6 --reps 5 --kc-vrest -2  --out $FLYBRAIN_OUT/mb/kcsparse2_-2.json
+python -m flybrain.eval.mb_sparse --device cuda:0 --odours 6 --reps 5 --kc-vrest -5  --out $FLYBRAIN_OUT/mb/kcsparse2_-5.json
+python -m flybrain.eval.mb_sparse --device cuda:0 --odours 6 --reps 5 --kc-vrest -10 --out $FLYBRAIN_OUT/mb/kcsparse2_-10.json
+python -m flybrain.eval.mb_embed --device cuda:0 --lr-auto --out $FLYBRAIN_OUT/mb/embed2.json   # the memory inside the recurrent brain (9.2)
+python -m pytest tests/test_mb.py                                             # regression guards on a synthetic wiring; no data needed
 ```
 
 ## Where things are
