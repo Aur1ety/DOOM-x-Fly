@@ -221,5 +221,5 @@
  "sha256": "650631872baf41748efec727659846e2fbb4ce41ce0ce79e3c237b5714b089ae",
  "n_cells": 36,
  "missing_types": [],
- "source": "~/flybrain-doom/outputs/graph/neurons.parquet"
+ "source": "neurons.parquet"
 }

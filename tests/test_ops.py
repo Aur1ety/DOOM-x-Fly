@@ -384,7 +384,7 @@ class FakeShell:
     def __init__(self, sudo_ok=False, listing=None, free_seq=(2600,), total=24576, apps=""):
         self.calls: list[list[str]] = []
         self.sudo_ok = sudo_ok
-        self.listing = MASTER_LISTING if listing is None else listing
+        self.listing = LOGIN_LISTING if listing is None else listing
         self.free_seq, self.total, self.apps = list(free_seq), total, apps
         self.sudo_rc: dict[tuple[str, ...], int] = {}
 
@@ -440,7 +440,7 @@ def http_seq(monkeypatch, codes):
 
 # Synthetic `sudo -n -l` output with the shape of a real login node's: sudo WITH a password plus one
 # unrelated NOPASSWD entry. The user, hosts and paths are invented.
-MASTER_LISTING = """Matching Defaults entries for alice on login-host:
+LOGIN_LISTING = """Matching Defaults entries for alice on login-host:
     env_reset, mail_badpass, secure_path=/usr/local/sbin\\:/usr/local/bin
 
 User alice may run the following commands on login-host:
@@ -503,7 +503,7 @@ def test_can_sudo_probe_then_nopasswd_listing(shell):
 
 def test_nopasswd_listed_parser():
     cmd = qwen.CMD_STOP_SERVICE
-    assert qwen.nopasswd_listed(MASTER_LISTING, cmd) is False          # (ALL : ALL) ALL needs a password
+    assert qwen.nopasswd_listed(LOGIN_LISTING, cmd) is False          # (ALL : ALL) ALL needs a password
     assert qwen.nopasswd_listed(WHITELIST_LISTING, cmd) is True
     assert qwen.nopasswd_listed("    (root) NOPASSWD: ALL\n", cmd) is True
     assert qwen.nopasswd_listed("    (root) NOPASSWD: /bin/systemctl\n", cmd) is True

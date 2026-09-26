@@ -330,7 +330,7 @@ def run(data_dir: Path = MALECNS_DIR, out_dir: Path | None = None, verify_sha: b
         for name, info in source.items():
             info["sha256_computed"] = sha256_file(data_dir / name)
             info["sha256_verified"] = info["sha256_computed"] == info["sha256_listed"]
-    ledger["source"] = {"data_dir": str(data_dir), "files": source,
+    ledger["source"] = {"data_dir": data_dir.name, "files": source,   # name only, no local path
                         "policy_reference": "github.com/nftechie/doomfly doom/connectome.py",
                         "nt_sign_map": NT_SIGN}
 

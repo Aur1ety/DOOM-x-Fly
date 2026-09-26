@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 2 on the server (run inside the venv, e.g. via scripts/detach.sh gpu-host stage2 "bash scripts/stage2_bc.sh <teacher.pt> <tag>"):
+# Stage 2 on the server (run inside the venv, e.g. via scripts/detach.sh gpu stage2 "bash scripts/stage2_bc.sh <teacher.pt> <tag>"):
 #   teacher recording -> behaviour cloning -> closed-loop eval -> blindfold tests -> DAgger round -> retrain -> eval -> video
 # Every step is idempotent-ish (skips recordings that already exist). Results land in $FLYBRAIN_OUT/bc/<tag>*.
 set -euo pipefail

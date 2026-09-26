@@ -54,7 +54,7 @@ FLYBRAIN_GPU_SHARED=0 bash scripts/e1m1_final.sh $FLYBRAIN_OUT/e1m1/v2_r3/studen
 python -m flybrain.eval.dashboard --ckpt $FLYBRAIN_OUT/e1m1/v2_r3/student.pt --temperature 1.25 --seeds 40004 --out demo.mp4
 ```
 
-Training takes a couple of hours on one A30. `python -m pytest tests/` runs the tests. The scripts `sync.sh`, `remote.sh`, `detach.sh` and `gpu_window.sh` are for my own two-machine setup, ignore them. Don't run the whole-brain step of `flybrain/model/bench.py` on CPU, it tries to build a dense 139k x 139k gradient.
+Training takes a couple of hours on one A30. `python -m pytest tests/` runs the tests. The scripts `sync.sh`, `remote.sh`, `detach.sh` and `gpu_window.sh` are for my own two-machine setup, ignore them (the host names come from `FLYBRAIN_LOGIN_HOST` / `FLYBRAIN_GPU_HOST`, see `scripts/hosts.sh`). Don't run the whole-brain step of `flybrain/model/bench.py` on CPU, it tries to build a dense 139k x 139k gradient.
 
 ## Memory: moved to Kenyon
 

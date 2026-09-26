@@ -1,7 +1,8 @@
 # M0/M1 report: setup, data, kernel, front end, harness (2026-09-14)
 
-Every number below is **measured** on a shared cluster (login-host: 24-core Xeon Silver 4310,
-125 GB; gpu-host: 56-core Xeon Gold 6330, 2× A30 24 GB) unless marked *estimated*. Commands are
+Every number below is **measured** on a shared two-node cluster (login node, called `login-host` below:
+24-core Xeon Silver 4310, 125 GB; GPU node, `gpu-host`: 56-core Xeon Gold 6330, 2× A30 24 GB) unless
+marked *estimated*. Commands are
 given so each number can be re-run. Nothing here is a training result.
 
 ## 1. Import ledger vs the doomfly reference (`python -m flybrain.data.import_malecns --verify-sha`)

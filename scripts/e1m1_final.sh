@@ -6,7 +6,7 @@
 #   FLYBRAIN_GPU_SHARED=0 bash scripts/e1m1_final.sh <ckpt> <tag> <temperature>
 set -euo pipefail
 CKPT="${1:?checkpoint}"; TAG="${2:?tag}"; TEMP="${3:?temperature}"
-D=~/flybrain-doom/outputs/e1m1
+D="${FLYBRAIN_OUT:-$HOME/flybrain-doom/outputs}/e1m1"
 OUT="$D/final_$TAG"; mkdir -p "$OUT"
 M="python -m flybrain.train.level_bc eval --episodes 100 --workers 26 --seed-base 20000"
 A="--ckpt $CKPT --sample --temperature $TEMP"      # the agent as evaluated everywhere; blindfolds use identical sampling

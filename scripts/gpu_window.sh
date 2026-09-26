@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# GPU window on gpu-host: stop the root-owned vLLM service (and its watchdog timer), run ONE
+# GPU window on the GPU node: stop the root-owned vLLM service (and its watchdog timer), run ONE
 # command with the whole card, make sure our own GPU processes are gone, restart the service,
 # wait until /metrics is healthy, re-arm the timer. The restore runs from an EXIT trap, so it
 # happens even if the command fails or the window is interrupted (Ctrl-C, SIGTERM).
@@ -41,7 +41,7 @@ if [ -n "${FLYBRAIN_OUT:-}" ] && mkdir -p "$FLYBRAIN_OUT" 2>/dev/null; then LEDG
 ledger() { [ -n "$LEDGER" ] && printf '%s\t%s\t%s\n' "$(date '+%Y-%m-%dT%H:%M:%S')" "$1" "$2" >> "$LEDGER"; return 0; }
 
 if [ "$DRY_RUN" != 1 ] && ! command -v nvidia-smi >/dev/null 2>&1; then
-  log "nvidia-smi not found: this must run on gpu-host"; exit 2
+  log "nvidia-smi not found: this must run on the GPU node"; exit 2
 fi
 
 CMD_PID=""

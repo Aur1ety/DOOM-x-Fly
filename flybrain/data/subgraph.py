@@ -575,7 +575,7 @@ def vocab_check(path: Path = ANNOTATIONS) -> dict:
                       else {"MISSING": True, "near": near(t)})
     dn = np.fromiter((s == OUTPUT_SUPERCLASS for s in sc), dtype=bool, count=len(sc))
     return {
-        "source": str(path), "n_rows": int(len(types)), "n_unique_types": len(uniq),
+        "source": Path(path).name, "n_rows": int(len(types)), "n_unique_types": len(uniq),
         "n_null_type": int(sum(1 for t in types if not isinstance(t, str))),
         "superclass_counts": vc(sc), "somaSide_counts": vc(sides),
         "descending": counts(dn),
@@ -650,7 +650,8 @@ def main(argv: list[str] | None = None) -> int:
         if not Path(src).exists():
             src = ANNOTATIONS
         cells, missing = resolve_readout(load_cells(src, ["bodyId", "type", "somaSide"]))
-        doc = write_readout(cells, a.readout_path, missing, str(src), force=a.force)
+        # file name only: the readout json is tracked, so no local or server path goes into it
+        doc = write_readout(cells, a.readout_path, missing, Path(src).name, force=a.force)
         print(f"wrote {a.readout_path}: {len(cells)} cells, sha256 {doc['sha256']}, missing {missing}")
         return 0
 

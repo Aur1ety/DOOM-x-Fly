@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# E1M1 imitation rounds on gpu-host (run through scripts/detach.sh from the code dir):
+# E1M1 imitation rounds on the GPU node (run through scripts/detach.sh from the code dir):
 #   round 0: fit the readout on navigator demos; rounds 1..N: DAgger (agent drives, navigator labels,
 #   beta decays), re-fit on everything, evaluate on held-out seeds (normal + blindfolded).
 #   bash scripts/e1m1_rounds.sh <first_round> <last_round> [gpu]
 set -euo pipefail
 FIRST="${1:?first round}"; LAST="${2:?last round}"; GPU="${3:-0}"
-D=~/flybrain-doom/outputs/e1m1
+D="${FLYBRAIN_OUT:-$HOME/flybrain-doom/outputs}/e1m1"
 M="python -m flybrain.train.level_bc"
 DEV="cuda:$GPU"
 READOUT="${READOUT:-dn_vpn}"          # population read by the head (dn = descending only; see docs/RESULTS.md)
