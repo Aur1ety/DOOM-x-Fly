@@ -24,7 +24,7 @@ from flybrain.ops import qwen
 REPO = Path(__file__).resolve().parents[1]
 GiB, MiB = gg.GiB, gg.MiB
 OWN = os.getpid()
-VLLM = 3918  # the root-owned worker seen on gpu-host card 0
+VLLM = 3918  # a root-owned inference worker on the GPU node, card 0
 
 
 # ---------------------------------------------------------------- fakes
@@ -98,7 +98,7 @@ class FakeClock:
 
 
 ME = os.getuid() if hasattr(os, "getuid") else 1000
-TEAMMATE = 40716  # same account, someone else's benchmark (seen on gpu-host with 7.2 GB)
+TEAMMATE = 40716  # another process on the same account, holding 7.2 GB
 
 
 def fake_uid(pid):
@@ -397,7 +397,7 @@ class FakeShell:
         elif cmd == ["sudo", "-n", "-l"]:
             rc, out = 0, self.listing
         elif cmd[:3] == ["sudo", "-n", "-l"]:
-            rc, out = 0, cmd[4] + "\n"  # measured on login-host: exit 0 even when a password is needed
+            rc, out = 0, cmd[4] + "\n"  # measured on the login node: exit 0 even when a password is needed
         elif cmd[:2] == ["sudo", "-n"]:
             rc = self.sudo_rc.get(tuple(cmd), 0)
         elif cmd[0] == "nvidia-smi" and cmd[1].startswith("--query-gpu"):
@@ -438,7 +438,8 @@ def http_seq(monkeypatch, codes):
     monkeypatch.setattr(qwen, "_http_get", get)
 
 
-# Shape of `sudo -n -l` on login-host (user has sudo WITH password + one unrelated NOPASSWD).
+# Synthetic `sudo -n -l` output with the shape of a real login node's: sudo WITH a password plus one
+# unrelated NOPASSWD entry. The user, hosts and paths are invented.
 MASTER_LISTING = """Matching Defaults entries for alice on login-host:
     env_reset, mail_badpass, secure_path=/usr/local/sbin\\:/usr/local/bin
 
@@ -446,10 +447,17 @@ User alice may run the following commands on login-host:
     (ALL : ALL) ALL
     (root) NOPASSWD: /usr/bin/python3 /opt/example/tool.py *
 """
-WHITELIST_LISTING = """User alice may run the following commands on gpu-host:
-    (root) NOPASSWD: /bin/systemctl stop vllm-qwen.service, /bin/systemctl start vllm-qwen.service,
-        /bin/systemctl stop agent-watchdog.timer, /bin/systemctl start agent-watchdog.timer
-"""
+
+
+def _rule(cmd):
+    return " ".join(cmd[2:])  # the sudoers form of a whitelisted command: drop "sudo -n"
+
+
+# Built from qwen's own whitelist, so no rule text is copied from a real machine. sudo wraps a long command
+# list onto an indented continuation line, and the parser has to join it, so the fixture keeps the wrap.
+WHITELIST_LISTING = ("User alice may run the following commands on gpu-host:\n"
+                     f"    (root) NOPASSWD: {_rule(qwen.CMD_STOP_SERVICE)}, {_rule(qwen.CMD_START_SERVICE)},\n"
+                     f"        {_rule(qwen.CMD_STOP_TIMER)}, {_rule(qwen.CMD_START_TIMER)}\n")
 
 METRICS_TEXT = """# HELP vllm:num_requests_running Number of requests in model execution batches.
 vllm:num_requests_running{engine="0",model_name="example-model"} 2.0
@@ -660,7 +668,7 @@ esac
 
 @pytest.fixture
 def fake_bin(tmp_path):
-    """PATH dir with an instantly-failing nvidia-smi (login-host's real one takes 5 s to fail)."""
+    """PATH dir with an instantly-failing nvidia-smi (the login node's real one takes 5 s to fail)."""
     b = tmp_path / "bin"
     b.mkdir()
     smi = b / "nvidia-smi"

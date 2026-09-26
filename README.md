@@ -29,8 +29,6 @@ Two clips, with the game, the simulated neurons lighting up at their real positi
 - the fastest of 12 consecutive runs (71 seconds)
 - the first three of those 12, unedited: it dies once, then makes it twice
 
-There is also a short clip of the memory circuit learning (`flybrain/eval/mb_video.py`): an odour lights up its Kenyon cells, dopamine pairs, the output cell's response drops, an unpaired odour stays put, and the fly's choice changes.
-
 Too big for git. Links coming.
 
 ## What's real and what's mine
@@ -43,7 +41,7 @@ The big open question: does the fly's specific wiring matter, or would any rando
 
 ## How to run it
 
-You need the MaleCNS v1.0 flat connectome files (CC BY 4.0, four Feather files) in `$FLYBRAIN_DATA/malecns_v1/`, and the shareware `DOOM1.WAD` v1.9 in `$FLYBRAIN_DATA/wads/`. Python 3.11, PyTorch with CUDA, ViZDoom 1.3, the rest is in `pyproject.toml`. Set `FLYBRAIN_DATA` and `FLYBRAIN_OUT`, then:
+You need the MaleCNS v1.0 flat connectome files (CC BY 4.0, three Feather files: body annotations, neurotransmitters and connectome weights) in `$FLYBRAIN_DATA/malecns_v1/`, and the shareware `DOOM1.WAD` v1.9 in `$FLYBRAIN_DATA/wads/`. Python 3.11, PyTorch with CUDA, ViZDoom 1.3, the rest is in `pyproject.toml`. Set `FLYBRAIN_DATA` and `FLYBRAIN_OUT`, then:
 
 ```bash
 python -m flybrain.data.import_malecns
@@ -58,39 +56,11 @@ python -m flybrain.eval.dashboard --ckpt $FLYBRAIN_OUT/e1m1/v2_r3/student.pt --t
 
 Training takes a couple of hours on one A30. `python -m pytest tests/` runs the tests. The scripts `sync.sh`, `remote.sh`, `detach.sh` and `gpu_window.sh` are for my own two-machine setup, ignore them. Don't run the whole-brain step of `flybrain/model/bench.py` on CPU, it tries to build a dense 139k x 139k gradient.
 
-## Memory: the fly's own mushroom body
+## Memory: moved to Kenyon
 
-A separate thread (write-up in `docs/RESULTS.md`, sections 7 to 10): the fly's own learning circuit, built from the same connectome plus the published dopamine plasticity rule, learns that an odour or a visual object predicts punishment or reward. It reproduces the measured odour-specific depression, holds several memories, and changes a simulated choice; the negatives are reported too. Same data as above; these run in seconds on CPU, except the two that need a GPU (whose recorded outputs predate the last review; rerun pending).
+The second half of this project, the fly's own memory circuit, now has its own repository: [Kenyon](https://github.com/Aur1ety/Kenyon), a fruit-fly memory circuit built from its own connectome. It builds the mushroom body from the same scan, adds the published dopamine learning rule, and teaches it odours and visual objects. It also puts the memory back inside the recurrent brain from this repo and finds that it barely reaches the descending neurons. In absolute terms it tilts the motor output very slightly; at the two cells MBON11 contacts directly (nine synapses) it is comparable to or larger than the odour's own effect, and on the left DNp52 it reverses it. The code, results, tests and the short clip of the circuit learning are all there, and sections 7 to 10 of the old `docs/RESULTS.md` are sections 1 to 4 of Kenyon's.
 
-The quickest look is the walkthrough, which teaches an odour and shows the fly's choices change:
-
-```bash
-python -m flybrain.eval.mb_build           # once: cache the mushroom-body wiring
-python -m flybrain.eval.mb_demo            # teach the fly, watch its choices change (add --modality visual)
-```
-
-The individual results (`W=$FLYBRAIN_OUT/mb/mb_wiring.npz`; the control variants add `--sparsity 1.0`, `--seed 1`
-or `--shuffle dan_mbon`):
-
-```bash
-python -m flybrain.eval.mb_build                                              # cache the mushroom-body wiring from the full connectome
-python -m flybrain.eval.mb_olfactory --binary-code --wiring $W                # smell (section 7)
-python -m flybrain.eval.mb_olfactory --binary-code --wiring $W --modality visual   # vision (section 8)
-python -m flybrain.eval.mb_behaviour --wiring $W --modality olfactory --binary-code  # does it change choice (7.5, 8.3; ten odour pairs)
-python -m flybrain.eval.mb_seeds --wiring $W --seeds 10                       # the section 7/8 numbers over ten odour draws
-python -m flybrain.eval.mb_online --wiring $W                                 # teaching with a clock: eligibility trace, timing, dose (10.1)
-python -m flybrain.eval.mb_lesion --wiring $W                                 # in-silico lesions next to real-fly results (10.2)
-python -m flybrain.eval.mb_recall --wiring $W                                 # partial cue: graded recall, no completion (10.3)
-python -m flybrain.eval.mb_pathway                                            # memory-to-steering route in the connectome (10.4)
-python -m flybrain.eval.mb_apl --wiring $W                                    # the Kenyon code from the real APL loop (10.5)
-python -m flybrain.eval.mb_magnitude --wiring $W                              # is the size of the memory a prediction? scored against Hige (10.6)
-python -m flybrain.eval.mb_sparse --device cuda:0 --odours 6 --reps 5 --out $FLYBRAIN_OUT/mb/kcsparse2_none.json   # section 9.1, one run per threshold
-python -m flybrain.eval.mb_sparse --device cuda:0 --odours 6 --reps 5 --kc-vrest -2  --out $FLYBRAIN_OUT/mb/kcsparse2_-2.json
-python -m flybrain.eval.mb_sparse --device cuda:0 --odours 6 --reps 5 --kc-vrest -5  --out $FLYBRAIN_OUT/mb/kcsparse2_-5.json
-python -m flybrain.eval.mb_sparse --device cuda:0 --odours 6 --reps 5 --kc-vrest -10 --out $FLYBRAIN_OUT/mb/kcsparse2_-10.json
-python -m flybrain.eval.mb_embed --device cuda:0 --lr-auto --out $FLYBRAIN_OUT/mb/embed2.json   # the memory inside the recurrent brain (9.2)
-python -m pytest tests/test_mb.py                                             # regression guards on a synthetic wiring; no data needed
-```
+Two memory files stay here: `flybrain/eval/mb_learn.py`, an early attempt to teach the recurrent brain a visual pattern seen through this repo's eye model (which Kenyon doesn't have), and no written result uses it; and `flybrain/model/mb_plasticity.py`, the plasticity module it runs (Kenyon has its own copy).
 
 ## Where things are
 
@@ -101,7 +71,7 @@ The package is still called `flybrain` from before the project had a name.
 - `flybrain/vision` – the eye model
 - `flybrain/env` – ViZDoom wrappers, WAD parsing, the E1M1 environment and the scripted navigator
 - `flybrain/train` – the student, imitation/DAgger, evaluation
-- `flybrain/eval` – probes and the video renderer
+- `flybrain/eval` – probes and the video renderer (and `mb_learn.py`, see above)
 - `docs/` – results and the data import report
 
 ## Credits
